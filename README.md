@@ -4,7 +4,7 @@ Authors Joe Vest (@joevest) & Andrew Chiles (@andrewchiles)
 
 Domain name selection is an important aspect of preparation for penetration tests and especially Red Team engagements. Commonly, domains that were used previously for benign purposes and were properly categorized can be purchased for only a few dollars. Such domains can allow a team to bypass reputation based web filters and network egress restrictions for phishing and C2 related tasks. 
 
-This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reptutation against services like BlueCoat and IBM X-Force. The primary tool output is a timestamped HTML table style report.
+This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like BlueCoat and IBM X-Force. The primary tool output is a timestamped HTML table style report.
 
 ## Features
 
@@ -14,7 +14,7 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 - Sorts results by domain age (if known)
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
-## Use
+## Usage
 
 Install Requirements
 
@@ -43,7 +43,7 @@ Use defaults to check for most recent 100 domains and check reputation
     
     python ./domainhunter.py
 
-Search for 1000 most recently expired/deleted domains, but don't check reputation aganist Bluecoat or IBM xForce
+Search for 1000 most recently expired/deleted domains, but don't check reputation against Bluecoat or IBM xForce
 
     python ./domainhunter.py -r 1000 -n
 
@@ -56,7 +56,7 @@ Search for available domains with search term of "dog" and max results of 100
     | |_| | |_| | |  | |/ ___ \ | || |\  | |  _  | |_| | |\  | | | | |___|  _ <
     |____/ \___/|_|  |_/_/   \_\___|_| \_| |_| |_|\___/|_| \_| |_| |_____|_| \_\
 
-    Expired Domains Reptutation Checker
+    Expired Domains Reputation Checker
 
     DISCLAIMER:
     This is for educational purposes only!
@@ -100,3 +100,15 @@ Search for available domains with search term of "dog" and max results of 100
     [+] FetchDoggieStore.com is categorized as: Society/Daily Living
     [*] IBM xForce Check: FetchDoggieStore.com
     [+] FetchDoggieStore.com is categorized as: {u'General Business': True}
+
+## Report Header Reference
+
+ - Domain: Target Domain
+ - Birth: First seen on Archive.org
+ - Entries: 
+ - TLDs Available: Top level top available
+ - Bluecoat Categorization: Bluecoat category
+ - IBM-xForce Categorization: IBM-xForce category
+ - WatchGuard: Watchguard reputation
+ - Namecheap: Link to namecheap.com
+ - Archive.org: Link to archive.org
