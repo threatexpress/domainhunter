@@ -1,0 +1,4 @@
+requests==2.13.0
+texttable==0.8.7
+beautifulsoup4==4.5.3
+lxml
