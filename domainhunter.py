@@ -9,6 +9,7 @@
 # Add reputation categorizations to identify desireable vs undesireable domains
 # Code cleanup/optimization
 # Read in list of desired domain names
+# Add Authenticated "Members-Only" option to download CSV/txt (https://member.expireddomains.net/domains/expiredcom/)
 
 import time 
 import random
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument('-c','--check', help='Perform slow reputation checks', required=False, default=False, action='store_true')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains (min. 100)', required=False, type=int, default=100)
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, type=int, default=400)
-
+    parser.add_argument('-f','--file', help='Input file containing potential domain names to check (1 per line)', required=False, type=str)
     args = parser.parse_args()
 
 ## Variables
@@ -112,6 +113,10 @@ if __name__ == "__main__":
 
     maxwidth=args.maxwidth
     
+    inputfile = False
+    if args.file:
+        inputfile = args.file
+
     t = Texttable(max_width=maxwidth)
     malwaredomains = 'http://mirror1.malwaredomains.com/files/justdomains'
     expireddomainsqueryurl = 'https://www.expireddomains.net/domain-name-search'
@@ -193,70 +198,98 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             # Turn the HTML into a Beautiful Soup object
             soup = BeautifulSoup(domains, 'lxml')
             table = soup.find("table")
+            try:
+                for row in table.findAll('tr')[1:]:
 
-            for row in table.findAll('tr')[1:]:
+                    # Alternative way to extract domain name
+                    # domain = row.find('td').find('a').text
 
-                # Alternative way to extract domain name
-                # domain = row.find('td').find('a').text
+                    cells = row.findAll("td")
+                    if len(cells) >= 1:
+                        output = ""
+                        c0 = row.find('td').find('a').text   # domain
+                        c1 = cells[1].find(text=True)   # bl
+                        c2 = cells[2].find(text=True)   # domainpop
+                        c3 = cells[3].find(text=True)   # birth
+                        c4 = cells[4].find(text=True)   # entries
+                        c5 = cells[5].find(text=True)   # similarweb
+                        c6 = cells[6].find(text=True)   # similarweb country code
+                        c7 = cells[7].find(text=True)   # moz
+                        c8 = cells[8].find(text=True)   # status com
+                        c9 = cells[9].find(text=True)   # status net
+                        c10 = cells[10].find(text=True) # status org
+                        c11 = cells[11].find(text=True) # status de
+                        c12 = cells[12].find(text=True) # tld registered
+                        c13 = cells[13].find(text=True) # monthly searches
+                        c14 = cells[14].find(text=True) # adwords competition
+                        c15 = cells[15].find(text=True) # list
+                        c16 = cells[16].find(text=True) # status
+                        c17 = cells[17].find(text=True) # related links
 
-                cells = row.findAll("td")
-                if len(cells) >= 1:
-                    output = ""
-                    c0 = row.find('td').find('a').text   # domain
-                    c1 = cells[1].find(text=True)   # bl
-                    c2 = cells[2].find(text=True)   # domainpop
-                    c3 = cells[3].find(text=True)   # birth
-                    c4 = cells[4].find(text=True)   # entries
-                    c5 = cells[5].find(text=True)   # similarweb
-                    c6 = cells[6].find(text=True)   # similarweb country code
-                    c7 = cells[7].find(text=True)   # moz
-                    c8 = cells[8].find(text=True)   # status com
-                    c9 = cells[9].find(text=True)   # status net
-                    c10 = cells[10].find(text=True) # status org
-                    c11 = cells[11].find(text=True) # status de
-                    c12 = cells[12].find(text=True) # tld registered
-                    c13 = cells[13].find(text=True) # monthly searches
-                    c14 = cells[14].find(text=True) # adwords competition
-                    c15 = cells[15].find(text=True) # list
-                    c16 = cells[16].find(text=True) # status
-                    c17 = cells[17].find(text=True) # related links
+                        available = ''
+                        if c8 == "available":
+                            available += ".com "
 
-                    available = ''
-                    if c8 == "available":
-                        available += ".com "
+                        if c9 == "available":
+                            available += ".net "
 
-                    if c9 == "available":
-                        available += ".net "
+                        if c10 == "available":
+                            available += ".org "
 
-                    if c10 == "available":
-                        available += ".org "
+                        if c11 == "available":
+                            available += ".de "
 
-                    if c11 == "available":
-                        available += ".de "
-
-                    # Skip additional reputation checks if this domain is already categorized as malicious 
-                    if c0 in maldomains_list:
-                        print("[-] Skipping {} - Identified as known malware domain").format(c0)
-                    else:
-                        bluecoat = ''
-                        ibmxforce = ''
-                        if c3 == '-':
-                            bluecoat = 'ignored'
-                            ibmxforce = 'ignored'
-                        elif check == True:
-                            bluecoat = checkBluecoat(c0)
-                            print "[+] {} is categorized as: {}".format(c0, bluecoat)
-                            ibmxforce = checkIBMxForce(c0)
-                            print "[+] {} is categorized as: {}".format(c0, ibmxforce)
-                            # Sleep to avoid captchas
-                            time.sleep(random.randrange(10,20))
+                        # Skip additional reputation checks if this domain is already categorized as malicious 
+                        if c0 in maldomains_list:
+                            print("[-] Skipping {} - Identified as known malware domain").format(c0)
                         else:
-                            bluecoat = "skipped"
-                            ibmxforce = "skipped"
-                        # Append parsed domain data to list
-                        data.append([c0,c3,c4,available,bluecoat,ibmxforce])
+                            bluecoat = ''
+                            ibmxforce = ''
+                            if c3 == '-':
+                                bluecoat = 'ignored'
+                                ibmxforce = 'ignored'
+                            elif check == True:
+                                bluecoat = checkBluecoat(c0)
+                                print "[+] {} is categorized as: {}".format(c0, bluecoat)
+                                ibmxforce = checkIBMxForce(c0)
+                                print "[+] {} is categorized as: {}".format(c0, ibmxforce)
+                                # Sleep to avoid captchas
+                                time.sleep(random.randrange(10,20))
+                            else:
+                                bluecoat = "skipped"
+                                ibmxforce = "skipped"
+                            # Append parsed domain data to list
+                            data.append([c0,c3,c4,available,bluecoat,ibmxforce])
+            except: 
+                print "[-] Error: No results found on this page!"
 
     # Retrieve the most recent expired/deleted domain results
+    elif inputfile:
+
+        print('[*] Fetching domain reputation from file: {}').format(inputfile)
+        # read in file contents to list
+        try:
+            domains = [line.rstrip('\r\n') for line in open(inputfile, "r")]
+            
+        except IOError:
+            print '[-] Error: {} does not appear to exist.'.format(inputfile)
+            exit()
+        
+        print('[*] Domains loaded: {}').format(len(domains))
+        for domain in domains:
+            if domain in maldomains_list:
+                print("[-] Skipping {} - Identified as known malware domain").format(domain)
+            else:
+                bluecoat = ''
+                ibmxforce = ''
+                bluecoat = checkBluecoat(domain)
+                print "[+] {} is categorized as: {}".format(domain, bluecoat)
+                ibmxforce = checkIBMxForce(domain)
+                print "[+] {} is categorized as: {}".format(domain, ibmxforce)
+                # Sleep to avoid captchas
+                time.sleep(random.randrange(10,20))
+                data.append([domain,'-','-','-',bluecoat,ibmxforce])
+
     else:
 
         print('[*] Fetching {} expired or deleted domains...').format(query)
@@ -279,10 +312,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             soup = BeautifulSoup(expireddomains, 'lxml')
             table = soup.find("table")
 
+        try:
             for row in table.findAll('tr')[1:]:
 
-                #print(row)
-                #domain = row.find('td').find('a').text
                 cells = row.findAll("td")
                 if len(cells) >= 1:
                     output = ""
@@ -338,6 +370,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                             ibmxforce = "skipped"
                         # Append parsed domain data to list
                         data.append([c0,c3,c4,available,bluecoat,ibmxforce])
+        except: 
+            print "[-] Error: No results found on this page!"
 
     # Sort domain list by column 2 (Birth Year)
     sortedData = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -398,3 +432,5 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
 
     print(t.draw())
+
+

@@ -10,7 +10,8 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 - Retrieves specified number of recently expired and deleted domains (.com, .net, .org primarily)
 - Retrieves available domains based on keyword search
-- Performs reputation checks against the Blue Coat Site Review service
+- Reads line delimited input file of potential domains names to check against reputation services
+- Performs reputation checks against the Blue Coat Site Review and IBM x-Force services
 - Sorts results by domain age (if known)
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
@@ -38,6 +39,8 @@ List DomainHunter options
       -r MAXRESULTS, --maxresults MAXRESULTS
                             Number of results to return when querying latest
                             expired/deleted domains (min. 100)
+      -f FILE, --file FILE  Input file containing potential domain names to check
+                        (1 per line)
 
 Use defaults to check for most recent 100 domains and check reputation
     
@@ -46,6 +49,10 @@ Use defaults to check for most recent 100 domains and check reputation
 Search for 1000 most recently expired/deleted domains, but don't check reputation against Bluecoat or IBM xForce
 
     python ./domainhunter.py -r 1000 -n
+
+Retreive reputation information from domains in an input file
+
+    python ./domainhunter.py -f <filename>
 
 Search for available domains with search term of "dog" and max results of 100
     
