@@ -5,10 +5,10 @@
 ## Description: Checks expired domains, bluecoat categorization, and Archive.org history to determine 
 ##              good candidates for phishing and C2 domain names
 
-# To-do: 
+# To-do:
+# Python 3 support 
 # Add reputation categorizations to identify desireable vs undesireable domains
 # Code cleanup/optimization
-# Read in list of desired domain names
 # Add Authenticated "Members-Only" option to download CSV/txt (https://member.expireddomains.net/domains/expiredcom/)
 
 import time 
@@ -36,6 +36,11 @@ def checkBluecoat(domain):
         else:
             soupA = BeautifulSoup(responseJson['categorization'], 'lxml')
             a = soupA.find("a").text
+        
+        # Print notice if CAPTCHAs are blocking accurate results
+        if a == 'captcha':
+            print('[-] Error: Blue Coat CAPTCHA received. Change your IP or manually solve a CAPTCHA at "https://sitereview.bluecoat.com/sitereview.jsp"')
+            #raw_input('[*] Press Enter to continue...')
 
         return a
     except:
@@ -272,7 +277,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             domains = [line.rstrip('\r\n') for line in open(inputfile, "r")]
             
         except IOError:
-            print '[-] Error: {} does not appear to exist.'.format(inputfile)
+            print '[-] Error: "{}" does not appear to exist.'.format(inputfile)
             exit()
         
         print('[*] Domains loaded: {}').format(len(domains))

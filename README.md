@@ -112,7 +112,7 @@ Search for available domains with search term of "dog" and max results of 100
 
  - Domain: Target Domain
  - Birth: First seen on Archive.org
- - Entries: 
+ - Entries: Number of entries in Archive.org
  - TLDs Available: Top level top available
  - Bluecoat Categorization: Bluecoat category
  - IBM-xForce Categorization: IBM-xForce category
