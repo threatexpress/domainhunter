@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
     print(title)
     print("")
-    print("Expired Domains Reptutation Checker")
+    print("Expired Domains Reputation Checker")
     print("")
     print("DISCLAIMER:")
     print("This is for educational purposes only!")
@@ -177,6 +177,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     maldomains = downloadMalwareDomains()
 
     maldomains_list = maldomains.split("\n")
+    
+    # Create an initial session
+    domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
 
     # Use the keyword string to narrow domain search if provided
     # Need to modify this to pull more than the first 25 results
@@ -186,23 +189,35 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         for i in range (0,maxresults,25):
             if i == 0:
                 url = "{}/?q={}".format(expireddomainsqueryurl,query)
-                headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&searchinit=1'.format(query)
+                headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(query)
             else:
                 url = "{}/?start={}&q={}".format(expireddomainsqueryurl,i,query)
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),query)
             print("[*]  {}".format(url))
             
             # Annoyingly when querying specific keywords the expireddomains.net site requires additional cookies which 
-            #  are set in JavaScript and not recognized by Requests so we add them here manually
+            #  are set in JavaScript and not recognized by Requests so we add them here manually.
+            # May not be needed, but the _pk_id.10.dd0a cookie only requires a single . to be successful
+            # In order to somewhat match a real cookie, but still be different, random integers are introduced
+
+            r1 = random.randint(100000,999999)
+            r2 = random.randint(100000,999999)
+            r3 = random.randint(100000,999999)
+
+            pk_str = '843f8d071e27aa52' + '.1496' + str(r1) + '.2.1496' + str(r2) + '.1496' + str(r3)
+
             jar = requests.cookies.RequestsCookieJar()
-            jar.set('_pk_id.10.dd0a', '*', domain='expireddomains.net', path='/')
+            jar.set('_pk_id.10.dd0a', '843f8d071e27aa52.1496597944.2.1496602069.1496601572.', domain='expireddomains.net', path='/')
             jar.set('_pk_ses.10.dd0a', '*', domain='expireddomains.net', path='/')
             
-            domains = s.get(url,headers=headers,verify=False,cookies=jar).text
+            domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
+
+            domains = domainrequest.text
 
             # Turn the HTML into a Beautiful Soup object
             soup = BeautifulSoup(domains, 'lxml')
             table = soup.find("table")
+
             try:
                 for row in table.findAll('tr')[1:]:
 
@@ -210,6 +225,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     # domain = row.find('td').find('a').text
 
                     cells = row.findAll("td")
+
                     if len(cells) >= 1:
                         output = ""
                         c0 = row.find('td').find('a').text   # domain
