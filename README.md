@@ -6,6 +6,13 @@ Domain name selection is an important aspect of preparation for penetration test
 
 This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like BlueCoat and IBM X-Force. The primary tool output is a timestamped HTML table style report.
 
+## Changes
+
+    - June 6 2017
+        + Added python 3 support
+        + Code cleanup and bug fixes
+        + Added Status column (Available, Make Offer, Price,Backorder,etc)
+
 ## Features
 
 - Retrieves specified number of recently expired and deleted domains (.com, .net, .org primarily)
@@ -39,8 +46,6 @@ List DomainHunter options
       -r MAXRESULTS, --maxresults MAXRESULTS
                             Number of results to return when querying latest
                             expired/deleted domains (min. 100)
-      -f FILE, --file FILE  Input file containing potential domain names to check
-                        (1 per line)
 
 Use defaults to check for most recent 100 domains and check reputation
     
