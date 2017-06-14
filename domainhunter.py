@@ -178,7 +178,17 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     maldomains_list = maldomains.split("\n")
     # Create an initial session
+    
+    # Generic Proxy support 
+    # TODO: add as a parameter 
+    proxies = {
+      'http': 'http://127.0.0.1:8080',
+      'https': 'http://127.0.0.1:8080',
+    }
+
+
     domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
+    #domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
 
     # Generate list of URLs to query for expired/deleted domains, queries return 25 results per page
     urls = []
@@ -214,16 +224,18 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # In order to somewhat match a real cookie, but still be different, random integers are introduced
 
         r1 = random.randint(100000,999999)
-        r2 = random.randint(100000,999999)
-        r3 = random.randint(100000,999999)
 
-        pk_str = '843f8d071e27aa52' + '.1496' + str(r1) + '.2.1496' + str(r2) + '.1496' + str(r3)
+
+        # Known good example _pk_id.10.dd0a cookie: 5abbbc772cbacfb1.1496760705.2.1496760705.1496760705
+        pk_str = '5abbbc772cbacfb1' + '.1496' + str(r1) + '.2.1496' + str(r1) + '.1496' + str(r1)
 
         jar = requests.cookies.RequestsCookieJar()
-        jar.set('_pk_id.10.dd0a', '843f8d071e27aa52.1496597944.2.1496602069.1496601572.', domain='expireddomains.net', path='/')
+        #jar.set('_pk_id.10.dd0a', '843f8d071e27aa52.1496597944.2.1496602069.1496601572.', domain='expireddomains.net', path='/')
         jar.set('_pk_ses.10.dd0a', '*', domain='expireddomains.net', path='/')
+        jar.set('_pk_id.10.dd0a', pk_str, domain='expireddomains.net', path='/')
         
         domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
+        #domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
 
         domains = domainrequest.text
 
