@@ -314,8 +314,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         available += ".de "
 
                     status = ""
-                    if c16:
-                        status = c16
+                    if c15:
+                        status = c15
 
                     # Skip additional reputation checks if this domain is already categorized as malicious 
                     if c0 in maldomains_list:
