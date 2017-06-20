@@ -243,6 +243,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         soup = BeautifulSoup(domains, 'lxml')
         table = soup.find("table")
 
+
         try:
             for row in table.findAll('tr')[1:]:
 
@@ -250,6 +251,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                 # domain = row.find('td').find('a').text
 
                 cells = row.findAll("td")
+
+
 
                 if len(cells) >= 1:
                     output = ""
@@ -260,30 +263,29 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c1 = cells[1].find(text=True)   # bl
                         c2 = cells[2].find(text=True)   # domainpop
                         c3 = cells[3].find(text=True)   # birth
-                        c4 = cells[4].find(text=True)   # entries
+                        c4 = cells[4].find(text=True)   # Archive.org entries
                         c5 = cells[5].find(text=True)   # similarweb
                         c6 = cells[6].find(text=True)   # similarweb country code
-                        c7 = cells[7].find(text=True)   # moz
+                        c7 = cells[7].find(text=True)   # Dmoz.org
                         c8 = cells[8].find(text=True)   # status com
                         c9 = cells[9].find(text=True)   # status net
                         c10 = cells[10].find(text=True) # status org
                         c11 = cells[11].find(text=True) # status de
                         c12 = cells[12].find(text=True) # tld registered
-                        c13 = cells[13].find(text=True) # monthly searches
-                        c14 = cells[14].find(text=True) # adwords competition
-                        c15 = cells[15].find(text=True) # list
-                        c16 = cells[16].find(text=True) # status
-                        c17 = cells[17].find(text=True) # related links
-                 
+                        c13 = cells[13].find(text=True) # Related Domains
+                        c14 = cells[14].find(text=True) # Domain list
+                        c15 = cells[15].find(text=True) # status
+                        c16 = cells[16].find(text=True) # related links
+
                     else:
                         c0 = cells[0].find(text=True)   # domain
                         c1 = cells[1].find(text=True)   # bl
                         c2 = cells[2].find(text=True)   # domainpop
                         c3 = cells[3].find(text=True)   # birth
-                        c4 = cells[4].find(text=True)   # entries
+                        c4 = cells[4].find(text=True)   # Archive.org entries
                         c5 = cells[5].find(text=True)   # similarweb
                         c6 = cells[6].find(text=True)   # similarweb country code
-                        c7 = cells[7].find(text=True)   # moz
+                        c7 = cells[7].find(text=True)   # Dmoz.org
                         c8 = cells[8].find(text=True)   # status com
                         c9 = cells[9].find(text=True)   # status net
                         c10 = cells[10].find(text=True) # status org
@@ -336,8 +338,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                             ibmxforce = "skipped"
                         # Append parsed domain data to list
                         data.append([c0,c3,c4,available,status,bluecoat,ibmxforce])
-        except: 
-            print("[-] Error: No results found on this page!")
+        except Exception as e: print(e) 
+            #print("[-] Error: No results found on this page!")
 
     # TODO: Add support of input file
     # Retrieve the most recent expired/deleted domain results
