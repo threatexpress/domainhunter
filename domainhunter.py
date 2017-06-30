@@ -2,7 +2,7 @@
 
 ## Title:       domainhunter.py
 ## Author:      Joe Vest and Andrew Chiles
-## Description: Checks expired domains, bluecoat categorization, and Archive.org history to determine 
+## Description: Checks expired domains, bluecoat categorization, and Archive.org history to determine
 ##              good candidates for phishing and C2 domain names
 
 # To-do:
@@ -10,10 +10,43 @@
 # Code cleanup/optimization
 # Add Authenticated "Members-Only" option to download CSV/txt (https://member.expireddomains.net/domains/expiredcom/)
 
-import time 
+import time
 import random
 import argparse
 import json
+import xmlrpc.client
+
+
+class PriceCheck(object):
+    """Pull domain pricing info from Gandi.net"""
+
+    def __init__(self, apikey):
+        self.api = xmlrpc.client.ServerProxy(
+            'https://rpc.ote.gandi.net/xmlrpc')
+        self.apikey = apikey
+
+    def get_domain_response(self, domain):
+        """Retrieve the full price object from Gandi."""
+
+        # TODO: Fix hardcoded currency
+        response = self.api.domain.price(self.apikey, [domain], {'currency': 'USD'})
+        while response[0]['available'] == 'pending':
+            time.sleep(0.7)
+            response = self.api.domain.price(self.apikey, [domain], {'currency': 'USD'})
+        return response
+
+    def get_price(self, domain):
+        """Get and return domain price, domain, and currency."""
+
+        domain_price = self.get_domain_response(domain)
+        first = domain_price[0]
+        domain = first['extension']
+        price = first['prices'][0]['unit_price'][0]['price']
+        currency = first['prices'][0]['unit_price'][0]['currency']
+        available = first['available']
+        cost = {'price': price, 'currency': currency, 'domain': domain,
+                'available': available}
+        return cost
 
 ## Functions
 
@@ -35,7 +68,7 @@ def checkBluecoat(domain):
         else:
             soupA = BeautifulSoup(responseJson['categorization'], 'lxml')
             a = soupA.find("a").text
-        
+
         # Print notice if CAPTCHAs are blocking accurate results
         if a == 'captcha':
             print('[-] Error: Blue Coat CAPTCHA received. Change your IP or manually solve a CAPTCHA at "https://sitereview.bluecoat.com/sitereview.jsp"')
@@ -47,7 +80,7 @@ def checkBluecoat(domain):
         return "-"
 
 def checkIBMxForce(domain):
-    try: 
+    try:
         url = 'https://exchange.xforce.ibmcloud.com/url/{}'.format(domain)
         headers = {'User-Agent':useragent,
                     'Accept':'application/json, text/plain, */*',
@@ -89,7 +122,7 @@ if __name__ == "__main__":
         import requests
         from bs4 import BeautifulSoup
         from texttable import Texttable
-        
+
     except Exception as e:
         print("Expired Domains Reputation Check")
         print("[-] Missing dependencies: {}".format(str(e)))
@@ -99,6 +132,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Checks expired domains, bluecoat categorization, and Archive.org history to determine good candidates for C2 and phishing domains')
     parser.add_argument('-q','--query', help='Optional keyword used to refine search results', required=False, type=str)
     parser.add_argument('-c','--check', help='Perform slow reputation checks', required=False, default=False, action='store_true')
+    parser.add_argument('-p', '--price', help='Price the domains using \
+                                               gandi.net. API key required.',
+                        action='store_true')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains (min. 100)', required=False, type=int, default=100)
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, type=int, default=400)
     #parser.add_argument('-f','--file', help='Input file containing potential domain names to check (1 per line)', required=False, type=str)
@@ -106,17 +142,17 @@ if __name__ == "__main__":
 
 ## Variables
     query = False
-    if args.query: 
+    if args.query:
         query = args.query
 
     check = args.check
     maxresults = args.maxresults
-    
+
     if maxresults < 100:
         maxresults = 100
 
     maxwidth=args.maxwidth
-    
+
     # TODO: Add Input file support
     #inputfile = False
     #if args.file:
@@ -125,24 +161,24 @@ if __name__ == "__main__":
     t = Texttable(max_width=maxwidth)
     malwaredomains = 'http://mirror1.malwaredomains.com/files/justdomains'
     expireddomainsqueryurl = 'https://www.expireddomains.net/domain-name-search'
-    
+    price_checker = PriceCheck('apikey')
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-            
+
     useragent = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
     headers = {'User-Agent':useragent}
 
     requests.packages.urllib3.disable_warnings()
- 
+
     # HTTP Session container, used to manage cookies, session tokens and other session information
     s = requests.Session()
 
     data = []
 
     title = '''
- ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____  
-|  _ \ / _ \|  \/  |  / \  |_ _| \ | | | | | | | | | \ | |_   _| ____|  _ \ 
+ ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____
+|  _ \ / _ \|  \/  |  / \  |_ _| \ | | | | | | | | | \ | |_   _| ____|  _ \
 | | | | | | | |\/| | / _ \  | ||  \| | | |_| | | | |  \| | | | |  _| | |_) |
-| |_| | |_| | |  | |/ ___ \ | || |\  | |  _  | |_| | |\  | | | | |___|  _ < 
+| |_| | |_| | |  | |/ ___ \ | || |\  | |  _  | |_| | |\  | | | | |___|  _ <
 |____/ \___/|_|  |_/_/   \_\___|_| \_| |_| |_|\___/|_| \_| |_| |_____|_| \_\ '''
 
     print(title)
@@ -151,7 +187,7 @@ if __name__ == "__main__":
     print("")
     print("DISCLAIMER:")
     print("This is for educational purposes only!")
-    disclaimer = '''It is designed to promote education and the improvement of computer/cyber security.  
+    disclaimer = '''It is designed to promote education and the improvement of computer/cyber security.
 The authors or employers are not liable for any illegal act or misuse performed by any user of this tool.
 If you plan to use this content for illegal purpose, don't.  Have a nice day :)'''
     print(disclaimer)
@@ -178,9 +214,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     maldomains_list = maldomains.split("\n")
     # Create an initial session
-    
-    # Generic Proxy support 
-    # TODO: add as a parameter 
+
+    # Generic Proxy support
+    # TODO: add as a parameter
     proxies = {
       'http': 'http://127.0.0.1:8080',
       'https': 'http://127.0.0.1:8080',
@@ -207,7 +243,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     else:
 
         print('[*] Fetching expired or deleted domains...')
-        for i in range (0,(maxresults),25):
+        for i in range (0,maxresults,25):
             urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&o=changed&r=a'.format(i))
             urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&o=changed&r=a'.format(i))
             urls.append('https://www.expireddomains.net/deleted-net-domains/?start={}&o=changed&r=a'.format(i))
@@ -218,7 +254,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
         print("[*]  {}".format(url))
 
-        # Annoyingly when querying specific keywords the expireddomains.net site requires additional cookies which 
+        # Annoyingly when querying specific keywords the expireddomains.net site requires additional cookies which
         #  are set in JavaScript and not recognized by Requests so we add them here manually.
         # May not be needed, but the _pk_id.10.dd0a cookie only requires a single . to be successful
         # In order to somewhat match a real cookie, but still be different, random integers are introduced
@@ -233,7 +269,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         #jar.set('_pk_id.10.dd0a', '843f8d071e27aa52.1496597944.2.1496602069.1496601572.', domain='expireddomains.net', path='/')
         jar.set('_pk_ses.10.dd0a', '*', domain='expireddomains.net', path='/')
         jar.set('_pk_id.10.dd0a', pk_str, domain='expireddomains.net', path='/')
-        
+
         domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
         #domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
 
@@ -276,6 +312,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c14 = cells[14].find(text=True) # Domain list
                         c15 = cells[15].find(text=True) # status
                         c16 = cells[16].find(text=True) # related links
+                        #c17 = cells[17].find(text=True) # price
 
                     else:
                         c0 = cells[0].find(text=True)   # domain
@@ -293,9 +330,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c12 = cells[12].find(text=True) # tld registered
                         c13 = cells[13].find(text=True) # changes
                         c14 = cells[14].find(text=True) # whois
-                        c15 = ""                        # not used
+                        #c15 = cells[15].find(text=True) # price
                         c16 = ""                        # not used
                         c17 = ""                        # not used
+                        c18 = ""                        # not used
 
                         # Expired Domains results have an additional 'Availability' column that breaks parsing "deleted" domains
                         #c15 = cells[15].find(text=True) # related links
@@ -317,28 +355,40 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     if c15:
                         status = c15
 
-                    # Skip additional reputation checks if this domain is already categorized as malicious 
+                    # TODO: Add a --min-reputation feature
+                    # Skip additional reputation checks if this domain is already categorized as malicious
                     if c0 in maldomains_list:
                         print("[-] Skipping {} - Identified as known malware domain").format(c0)
                     else:
                         bluecoat = ''
                         ibmxforce = ''
+                        domain_price = ''
                         if c3 == '-':
                             bluecoat = 'ignored'
                             ibmxforce = 'ignored'
+                            domain_price = 'ignored'
                         elif check == True:
                             bluecoat = checkBluecoat(c0)
                             print("[+] {} is categorized as: {}".format(c0, bluecoat))
                             ibmxforce = checkIBMxForce(c0)
                             print("[+] {} is categorized as: {}".format(c0, ibmxforce))
+                            if args.check == True:
+                                # Price domains. String the BS4 objec.t
+                                domain_name = str(c0)
+                                price_info = price_checker.get_price(domain_name)
+                                domain_price = str(price_info['price']) + ' ' + str(price_info['currency'])
+                                print(f"[+] {domain_name} can be purchased for: {domain_price}")
+                            else:
+                                domain_price = "skipped"
                             # Sleep to avoid captchas
                             time.sleep(random.randrange(10,20))
                         else:
                             bluecoat = "skipped"
                             ibmxforce = "skipped"
+                            domain_price = "skipped"
                         # Append parsed domain data to list
-                        data.append([c0,c3,c4,available,status,bluecoat,ibmxforce])
-        except Exception as e: print(e) 
+                        data.append([c0,c3,c4,available,status,bluecoat,ibmxforce,domain_price])
+        except Exception as e: print(e)
             #print("[-] Error: No results found on this page!")
 
     # TODO: Add support of input file
@@ -349,11 +399,11 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     #     # read in file contents to list
     #     try:
     #         domains = [line.rstrip('\r\n') for line in open(inputfile, "r")]
-            
+
     #     except IOError:
     #         print '[-] Error: "{}" does not appear to exist.'.format(inputfile)
     #         exit()
-        
+
     #     print('[*] Domains loaded: {}').format(len(domains))
     #     for domain in domains:
     #         if domain in maldomains_list:
@@ -370,10 +420,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     #             data.append([domain,'-','-','-',bluecoat,ibmxforce])
 
     # Sort domain list by column 2 (Birth Year)
-    sortedData = sorted(data, key=lambda x: x[1], reverse=True) 
+    sortedData = sorted(data, key=lambda x: x[1], reverse=True)
 
     t.add_rows(sortedData)
-    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BC', 'IBM']
+    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BC', 'IBM', 'Price']
     t.header(header)
 
     # Build HTML Table
@@ -381,7 +431,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     htmlHeader = '<html><head><title>Expired Domain List</title></head>'
     htmlBody = '<body><p>The following available domains report was generated at {}</p>'.format(timestamp)
     htmlTableHeader = '''
-                
+
                  <table border="1" align="center">
                     <th>Domain</th>
                     <th>Birth</th>
@@ -395,6 +445,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     <th>WatchGuard</th>
                     <th>Namecheap</th>
                     <th>Archive.org</th>
+                    <th>Price</th>
                  '''
 
     htmlTableBody = ''
@@ -403,6 +454,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Build HTML table contents
     for i in sortedData:
+        print(i)
         htmlTableBody += '<tr>'
         htmlTableBody += '<td>{}</td>'.format(i[0]) # Domain
         htmlTableBody += '<td>{}</td>'.format(i[1]) # Birth
@@ -417,6 +469,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
+        htmlTableBody += '<td><a href="https://www.gandi.net/" target="_blank">{} @ Gandi.net</a>'.format(i[0])
         htmlTableBody += '</tr>'
 
     html = htmlHeader + htmlBody + htmlTableHeader + htmlTableBody + htmlTableFooter + htmlFooter
