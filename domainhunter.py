@@ -22,7 +22,7 @@ class PriceCheck(object):
 
     def __init__(self, apikey):
         self.api = xmlrpc.client.ServerProxy(
-            'https://rpc.ote.gandi.net/xmlrpc')
+            'https://rpc.gandi.net/xmlrpc/')
         self.apikey = apikey
 
     def get_domain_response(self, domain):
@@ -42,9 +42,14 @@ class PriceCheck(object):
         domain_price = self.get_domain_response(domain)
         first = domain_price[0]
         domain = first['extension']
-        price = first['prices'][0]['unit_price'][0]['price']
-        currency = first['prices'][0]['unit_price'][0]['currency']
-        available = first['available']
+        if first['available'] == 'available':
+            price = first['prices'][0]['unit_price'][0]['price']
+            currency = first['prices'][0]['unit_price'][0]['currency']
+            available = first['available']
+        else:
+            price = 'unavailable'
+            currency = 'unavailable'
+            available = 'unavailable'
         cost = {'price': price, 'currency': currency, 'domain': domain,
                 'available': available}
         return cost
@@ -100,7 +105,6 @@ def checkIBMxForce(domain):
             a = responseJson['error']
         else:
             a = responseJson["result"]['cats']
-
         return a
 
     except:
@@ -162,7 +166,7 @@ if __name__ == "__main__":
     t = Texttable(max_width=maxwidth)
     malwaredomains = 'http://mirror1.malwaredomains.com/files/justdomains'
     expireddomainsqueryurl = 'https://www.expireddomains.net/domain-name-search'
-    price_checker = PriceCheck('apikey')
+    price_checker = PriceCheck('<api key here>')
     timestamp = time.strftime("%Y%m%d_%H%M%S")
 
     useragent = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
@@ -277,7 +281,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         domains = domainrequest.text
 
         # Turn the HTML into a Beautiful Soup object
-        soup = BeautifulSoup(domains, 'lxml')
+        soup = BeautifulSoup(domains, features="lxml")
         table = soup.find("table")
 
 
@@ -313,7 +317,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c14 = cells[14].find(text=True) # Domain list
                         c15 = cells[15].find(text=True) # status
                         c16 = cells[16].find(text=True) # related links
-                        #c17 = cells[17].find(text=True) # price
 
                     else:
                         c0 = cells[0].find(text=True)   # domain
@@ -331,10 +334,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c12 = cells[12].find(text=True) # tld registered
                         c13 = cells[13].find(text=True) # changes
                         c14 = cells[14].find(text=True) # whois
-                        #c15 = cells[15].find(text=True) # price
+                        c15 = ""                        # not used
                         c16 = ""                        # not used
                         c17 = ""                        # not used
-                        c18 = ""                        # not used
 
                         # Expired Domains results have an additional 'Availability' column that breaks parsing "deleted" domains
                         #c15 = cells[15].find(text=True) # related links
@@ -377,8 +379,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                                 # Price domains. String the BS4 objec.t
                                 domain_name = str(c0)
                                 price_info = price_checker.get_cost(domain_name, 'USD')
-                                domain_price = str(price_info['price']) + ' ' + str(price_info['currency'])
-                                print(f"[+] {domain_name} can be purchased for: {domain_price}")
+                                if price_info['price'] == 'unavailable':
+                                    domain_price = 'unavailable'
+                                    print(f'[-] {domain_name} is unavailable for purchase.')
+                                else:
+                                    domain_price = str(price_info['price']) + ' ' + str(price_info['currency'])
+                                    print(f"[+] {domain_name} can be purchased for: {domain_price}")
                             else:
                                 domain_price = "skipped"
                             # Sleep to avoid captchas
@@ -455,7 +461,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Build HTML table contents
     for i in sortedData:
-        print(i)
         htmlTableBody += '<tr>'
         htmlTableBody += '<td>{}</td>'.format(i[0]) # Domain
         htmlTableBody += '<td>{}</td>'.format(i[1]) # Birth
@@ -470,7 +475,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
-        htmlTableBody += '<td><a href="https://www.gandi.net/" target="_blank">{} @ Gandi.net</a>'.format(i[0])
+        htmlTableBody += '<td><a href="https://www.gandi.net/" target="_blank">{} @ Gandi.net</a>'.format(i[-1])
         htmlTableBody += '</tr>'
 
     html = htmlHeader + htmlBody + htmlTableHeader + htmlTableBody + htmlTableFooter + htmlFooter
