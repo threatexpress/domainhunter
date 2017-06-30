@@ -36,7 +36,7 @@ class PriceCheck(object):
                                              {'currency': self.currency})
         return response
 
-    def get_price(self, domain, currency):
+    def get_cost(self, domain, currency):
         """Get and return domain price, domain, and currency."""
         self.currency = currency
         domain_price = self.get_domain_response(domain)
@@ -376,7 +376,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                             if args.check == True:
                                 # Price domains. String the BS4 objec.t
                                 domain_name = str(c0)
-                                price_info = price_checker.get_price(domain_name, 'USD')
+                                price_info = price_checker.get_cost(domain_name, 'USD')
                                 domain_price = str(price_info['price']) + ' ' + str(price_info['currency'])
                                 print(f"[+] {domain_name} can be purchased for: {domain_price}")
                             else:
