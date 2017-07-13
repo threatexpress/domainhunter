@@ -138,8 +138,8 @@ if __name__ == "__main__":
     parser.add_argument('-q','--query', help='Optional keyword used to refine search results', required=False, type=str)
     parser.add_argument('-c','--check', help='Perform slow reputation checks', required=False, default=False, action='store_true')
     parser.add_argument('-p', '--price', help='Price the domains using \
-                                               gandi.net. API key required.',
-                        action='store_true')
+                                               the provided gandi.net API key.\
+                                               Must be used with -c.')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains (min. 100)', required=False, type=int, default=100)
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, type=int, default=400)
     #parser.add_argument('-f','--file', help='Input file containing potential domain names to check (1 per line)', required=False, type=str)
@@ -152,6 +152,7 @@ if __name__ == "__main__":
 
     check = args.check
     maxresults = args.maxresults
+    apikey = args.price
 
     if maxresults < 100:
         maxresults = 100
@@ -166,7 +167,7 @@ if __name__ == "__main__":
     t = Texttable(max_width=maxwidth)
     malwaredomains = 'http://mirror1.malwaredomains.com/files/justdomains'
     expireddomainsqueryurl = 'https://www.expireddomains.net/domain-name-search'
-    price_checker = PriceCheck('<api key here>')
+    price_checker = PriceCheck(apikey)
     timestamp = time.strftime("%Y%m%d_%H%M%S")
 
     useragent = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
@@ -376,7 +377,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                             ibmxforce = checkIBMxForce(c0)
                             print("[+] {} is categorized as: {}".format(c0, ibmxforce))
                             if args.check == True:
-                                # Price domains. String the BS4 objec.t
+                                # Price domains. String the BS4 object.
                                 domain_name = str(c0)
                                 price_info = price_checker.get_cost(domain_name, 'USD')
                                 if price_info['price'] == 'unavailable':
