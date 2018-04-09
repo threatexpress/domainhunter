@@ -7,23 +7,26 @@ Domain name selection is an important aspect of preparation for penetration test
 This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec Web Filter (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
 
 ## Changes
-    
+    - 9 April 2018
+        + Added -t switch for timing control. -t <1-5>
+        + Added Google SafeBrowsing and PhishTank reputation checks
+        + Fixed bug in IBMXForce response parsing
     - 7 April 2018
-        + Fixed support for Symantec Application Classification (formerly Blue Coat WebFilter)
+        + Fixed support for Symantec WebPulse Site Review (formerly Blue Coat WebFilter)
         + Added Cisco Talos Domain Reputation check
         + Added feature to perform a reputation check against a single non-expired domain. This is useful when monitoring reputation for domains used in ongoing campaigns and engagements.
 
     - 6 June 2017
         + Added python 3 support
         + Code cleanup and bug fixes
-        + Added Status column (Available, Make Offer, Price,Backorder,etc)
+        + Added Status column (Available, Make Offer, Price, Backorder, etc)
 
 ## Features
 
-- Retrieves specified number of recently expired and deleted domains (.com, .net, .org primarily) from ExpiredDomains.net
-- Retrieves available domains based on keyword search from ExpiredDomains.net
-- Performs reputation checks against the Symantec Web Filter (BlueCoat), IBM x-Force, and Cisco Talos services
-- Sorts results by domain age (if known)
+- Retrieve specified number of recently expired and deleted domains (.com, .net, .org primarily) from ExpiredDomains.net
+- Retrieve available domains based on keyword search from ExpiredDomains.net
+- Perform reputation checks against the Symantec Web Filter (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
+- Sort results by domain age (if known)
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
 ## Usage
@@ -46,14 +49,18 @@ List DomainHunter options
     optional arguments:
       -h, --help            show this help message and exit
       -q QUERY, --query QUERY
-                            Optional keyword used to refine search results
-      -c, --check           Perform slow reputation checks
+                            Keyword used to refine search results
+      -c, --check           Perform domain reputation checks
       -r MAXRESULTS, --maxresults MAXRESULTS
                             Number of results to return when querying latest
-                            expired/deleted domains (min. 100)
+                            expired/deleted domains
       -s SINGLE, --single SINGLE
-                            Performs reputation checks against a single domain
-                            name.
+                            Performs detailed reputation checks against a single
+                            domain name/IP.
+      -t {0,1,2,3,4,5}, --timing {0,1,2,3,4,5}
+                            Modifies request timing to avoid CAPTCHAs. Slowest(0)
+                            = 90-120 seconds, Default(3) = 10-20 seconds,
+                            Fastest(5) = no delay
       -w MAXWIDTH, --maxwidth MAXWIDTH
                             Width of text table
       -v, --version         show program's version number and exit
@@ -66,9 +73,21 @@ Search for 1000 most recently expired/deleted domains, but don't check reputatio
 
     python ./domainhunter.py -r 1000
 
-Perform reputation check against a single domain
+Perform all reputation checks for a single domain
 
-    python3 ./domainhunter.py -s <domain.com>
+    python3 ./domainhunter.py -s mydomain.com
+
+    [*] Downloading malware domain list from http://mirror1.malwaredomains.com/files/justdomains
+
+    [*] Fetching domain reputation for: mydomain.com
+    [*] Google SafeBrowsing and PhishTank: mydomain.com
+    [+] mydomain.com: No issues found
+    [*] BlueCoat: mydomain.com
+    [+] mydomain.com: Technology/Internet
+    [*] IBM xForce: mydomain.com
+    [+] mydomain.com: Communication Services, Software as a Service, Cloud, (Score: 1)
+    [*] Cisco Talos: mydomain.com
+    [+] mydomain.com: Web Hosting (Score: Neutral)
 
 Search for available domains with search term of "dog", max results of 100, and check reputation
     

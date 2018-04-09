@@ -6,7 +6,6 @@
 ##              good candidates for phishing and C2 domain names
 
 # To-do:
-# Add reputation categorizations to identify desireable vs undesireable domains
 # Code cleanup/optimization
 # Add Authenticated "Members-Only" option to download CSV/txt (https://member.expireddomains.net/domains/expiredcom/)
 
@@ -15,9 +14,24 @@ import random
 import argparse
 import json
 
-__version__ = "20180407"
+__version__ = "20180409"
 
 ## Functions
+
+def doSleep(timing):
+    if timing == 0:
+        time.sleep(random.randrange(90,120))
+    elif timing == 1:
+        time.sleep(random.randrange(60,90))
+    elif timing == 2:
+        time.sleep(random.randrange(30,60))
+    elif timing == 3:
+        time.sleep(random.randrange(10,20))
+    elif timing == 4:
+        time.sleep(random.randrange(5,10))
+    else:
+        # Maxiumum speed - no delay
+        pass
 
 def checkBluecoat(domain):
     try:
@@ -27,7 +41,7 @@ def checkBluecoat(domain):
                     'Content-Type':'application/json; charset=UTF-8',
                     'Referer':'https://sitereview.bluecoat.com/lookup'}
 
-        print('[*] BlueCoat Check: {}'.format(domain))
+        print('[*] BlueCoat: {}'.format(domain))
         response = s.post(url,headers=headers,json=postData,verify=False)
 
         responseJSON = json.loads(response.text)
@@ -56,7 +70,7 @@ def checkIBMxForce(domain):
                     'Origin':url,
                     'Referer':url}
 
-        print('[*] IBM xForce Check: {}'.format(domain))
+        print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
         response = s.get(url,headers=headers,verify=False)
@@ -65,8 +79,17 @@ def checkIBMxForce(domain):
 
         if 'error' in responseJSON:
             a = responseJSON['error']
+
+        elif not responseJSON['result']['cats']:
+            a = 'Uncategorized'
+        
         else:
-            a = str(responseJSON["result"]['cats'])
+            categories = ''
+            # Parse all dictionary keys and append to single string to get Category names
+            for key in responseJSON["result"]['cats']:
+                categories += '{0}, '.format(str(key))
+
+            a = '{0}(Score: {1})'.format(categories,str(responseJSON['result']['score']))
 
         return a
 
@@ -75,17 +98,22 @@ def checkIBMxForce(domain):
         return "-"
 
 def checkTalos(domain):
-    try:
-        url = "https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc".format(domain)
-        headers = {'User-Agent':useragent,
-                   'Referer':url}
+    url = "https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc".format(domain)
+    headers = {'User-Agent':useragent,
+               'Referer':url}
 
-        print('[*] Cisco Talos Check: {}'.format(domain))
+    print('[*] Cisco Talos: {}'.format(domain))
+    try:
         response = s.get(url,headers=headers,verify=False)
-        
+
         responseJSON = json.loads(response.text)
+
         if 'error' in responseJSON:
             a = str(responseJSON['error'])
+        
+        elif responseJSON['category'] is None:
+            a = 'Uncategorized'
+
         else:
             a = '{0} (Score: {1})'.format(str(responseJSON['category']['description']), str(responseJSON['web_score_name']))
        
@@ -95,15 +123,93 @@ def checkTalos(domain):
         print('[-] Error retrieving Talos reputation!')
         return "-"
 
+def checkMXToolbox(domain):
+    url = 'https://mxtoolbox.com/Public/Tools/BrandReputation.aspx'
+    headers = {'User-Agent':useragent,
+            'Origin':url,
+            'Referer':url}  
 
-def downloadMalwareDomains():
-    url = malwaredomains
+    print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
+    
+    try:
+        response = s.get(url=url, headers=headers)
+        
+        soup = BeautifulSoup(response.content,'lxml')
+
+        viewstate = soup.select('input[name=__VIEWSTATE]')[0]['value']
+        viewstategenerator = soup.select('input[name=__VIEWSTATEGENERATOR]')[0]['value']
+        eventvalidation = soup.select('input[name=__EVENTVALIDATION]')[0]['value']
+
+        data = {
+        "__EVENTTARGET": "",
+        "__EVENTARGUMENT": "",
+        "__VIEWSTATE": viewstate,
+        "__VIEWSTATEGENERATOR": viewstategenerator,
+        "__EVENTVALIDATION": eventvalidation,
+        "ctl00$ContentPlaceHolder1$brandReputationUrl": domain,
+        "ctl00$ContentPlaceHolder1$brandReputationDoLookup": "Brand Reputation Lookup",
+        "ctl00$ucSignIn$hfRegCode": 'missing',
+        "ctl00$ucSignIn$hfRedirectSignUp": '/Public/Tools/BrandReputation.aspx',
+        "ctl00$ucSignIn$hfRedirectLogin": '',
+        "ctl00$ucSignIn$txtEmailAddress": '',
+        "ctl00$ucSignIn$cbNewAccount": 'cbNewAccount',
+        "ctl00$ucSignIn$txtFullName": '',
+        "ctl00$ucSignIn$txtModalNewPassword": '',
+        "ctl00$ucSignIn$txtPhone": '',
+        "ctl00$ucSignIn$txtCompanyName": '',
+        "ctl00$ucSignIn$drpTitle": '',
+        "ctl00$ucSignIn$txtTitleName": '',
+        "ctl00$ucSignIn$txtModalPassword": ''
+        }
+          
+        response = s.post(url=url, headers=headers, data=data)
+
+        soup = BeautifulSoup(response.content,'lxml')
+
+        a = ''
+        if soup.select('div[id=ctl00_ContentPlaceHolder1_noIssuesFound]'):
+            a = 'No issues found'
+            return a
+        else:
+            if soup.select('div[id=ctl00_ContentPlaceHolder1_googleSafeBrowsingIssuesFound]'):
+                a = 'Google SafeBrowsing Issues Found. '
+        
+            if soup.select('div[id=ctl00_ContentPlaceHolder1_phishTankIssuesFound]'):
+                a += 'PhishTank Issues Found'
+            return a
+
+    except Exception as e:
+        print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
+        return "-"
+
+def downloadMalwareDomains(malwaredomainsURL):
+    url = malwaredomainsURL
     response = s.get(url,headers=headers,verify=False)
     responseText = response.text
     if response.status_code == 200:
         return responseText
     else:
-        print("Error reaching:{}  Status: {}").format(url, response.status_code)
+        print("[-] Error reaching:{}  Status: {}").format(url, response.status_code)
+
+def checkDomain(domain):
+    print('[*] Fetching domain reputation for: {}'.format(domain))
+
+    if domain in maldomainsList:
+        print("[!] {}: Identified as known malware domain (malwaredomains.com)".format(domain))
+    
+    mxtoolbox = checkMXToolbox(domain)
+    print("[+] {}: {}".format(domain, mxtoolbox))
+    
+    bluecoat = checkBluecoat(domain)
+    print("[+] {}: {}".format(domain, bluecoat))
+    
+    ibmxforce = checkIBMxForce(domain)
+    print("[+] {}: {}".format(domain, ibmxforce))
+
+    ciscotalos = checkTalos(domain)
+    print("[+] {}: {}".format(domain, ciscotalos))
+    print("")
+    return
 
 ## MAIN
 if __name__ == "__main__":
@@ -120,31 +226,30 @@ if __name__ == "__main__":
         quit(0)
 
     parser = argparse.ArgumentParser(description='Finds expired domains, domain categorization, and Archive.org history to determine good candidates for C2 and phishing domains')
-    parser.add_argument('-q','--query', help='Optional keyword used to refine search results', required=False, default=False, type=str, dest='query')
-    parser.add_argument('-c','--check', help='Perform slow reputation checks', required=False, default=False, action='store_true', dest='check')
-    parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains (min. 100)', required=False, default=100, type=int, dest='maxresults')
-    parser.add_argument('-s','--single', help='Performs reputation checks against a single domain name.', required=False, default=False, dest='single')
+    parser.add_argument('-q','--query', help='Keyword used to refine search results', required=False, default=False, type=str, dest='query')
+    parser.add_argument('-c','--check', help='Perform domain reputation checks', required=False, default=False, action='store_true', dest='check')
+    parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains', required=False, default=100, type=int, dest='maxresults')
+    parser.add_argument('-s','--single', help='Performs detailed reputation checks against a single domain name/IP.', required=False, default=False, dest='single')
+    parser.add_argument('-t','--timing', help='Modifies request timing to avoid CAPTCHAs. Slowest(0) = 90-120 seconds, Default(3) = 10-20 seconds, Fastest(5) = no delay', required=False, default=3, type=int, choices=range(0,6), dest='timing')
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, default=400, type=int, dest='maxwidth')
     parser.add_argument('-v','--version', action='version',version='%(prog)s {version}'.format(version=__version__))
     args = parser.parse_args()
 
 ## Variables
-
     query = args.query
 
     check = args.check
     
     maxresults = args.maxresults
     
-    if maxresults < 100:
-        maxresults = 100
-    
     single = args.single
+
+    timing = args.timing
 
     maxwidth = args.maxwidth
     
-    malwaredomains = 'http://mirror1.malwaredomains.com/files/justdomains'
-    expireddomainsqueryurl = 'https://www.expireddomains.net/domain-name-search'
+    malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
+    expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
     
     timestamp = time.strftime("%Y%m%d_%H%M%S")
             
@@ -176,41 +281,35 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     print(disclaimer)
     print("")
 
+    # Download known malware domains
+    print('[*] Downloading malware domain list from {}\n'.format(malwaredomainsURL))
+    maldomains = downloadMalwareDomains(malwaredomainsURL)
+    maldomainsList = maldomains.split("\n")
+
     # Retrieve reputation for a single choosen domain (Quick Mode)
     if single:
-        domain = single
-        print('[*] Fetching domain reputation for: {}'.format(domain))
+        checkDomain(single)
+        quit(0)
 
-        bluecoat = ''
-        ibmxforce = ''
-        ciscotalos = ''
-        
-        bluecoat = checkBluecoat(domain)
-        print("[+] {}: {}".format(domain, bluecoat))
-        
-        ibmxforce = checkIBMxForce(domain)
-        print("[+] {}: {}".format(domain, ibmxforce))
-
-        ciscotalos = checkTalos(domain)
-        print("[+] {}: {}".format(domain, ciscotalos))
-
-        quit()
-
-    # Calculate estimated runtime based on sleep variable
-    runtime = 0
+    # Calculate estimated runtime based on timing variable if checking domain categorization for all returned domains
     if check:
-        runtime = (maxresults * 20) / 60
-
+        if timing == 0:
+            seconds = 90
+        elif timing == 1:
+            seconds = 60
+        elif timing == 2:
+            seconds = 30
+        elif timing == 3:
+            seconds = 20
+        elif timing == 4:
+            seconds = 10
+        else:
+            seconds = 0
+        runtime = (maxresults * seconds) / 60
+        print("[*] Peforming Domain Categorization Lookups:")
+        print("[*] Estimated duration is {} minutes. Modify lookup speed with -t switch.\n".format(int(runtime)))
     else:
-        runtime = maxresults * .15 / 60
-
-    print("Estimated Max Run Time: {} minutes\n".format(int(runtime)))
-    
-    # Download known malware domains
-    print('[*] Downloading malware domain list from {}'.format(malwaredomains))
-    maldomains = downloadMalwareDomains()
-
-    maldomains_list = maldomains.split("\n")
+        pass
       
     # Generic Proxy support 
     # TODO: add as a parameter 
@@ -221,28 +320,30 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Create an initial session
     domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
+    
+    # Use proxy like Burp for debugging request/parsing errors
     #domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
 
-    # Generate list of URLs to query for expired/deleted domains, queries return 25 results per page
+    # Generate list of URLs to query for expired/deleted domains
     urls = []
 
     # Use the keyword string to narrow domain search if provided
     if query:
-
         print('[*] Fetching expired or deleted domains containing "{}"'.format(query))
         for i in range (0,maxresults,25):
             if i == 0:
-                urls.append("{}/?q={}".format(expireddomainsqueryurl,query))
+                urls.append("{}/?q={}".format(expireddomainsqueryURL,query))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(query)
             else:
-                urls.append("{}/?start={}&q={}".format(expireddomainsqueryurl,i,query))
+                urls.append("{}/?start={}&q={}".format(expireddomainsqueryURL,i,query))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),query)
     
-    # If no keyword provided, retrieve list of recently expired domains
+    # If no keyword provided, retrieve list of recently expired domains in batches of 25 results.
     else:
-
         print('[*] Fetching expired or deleted domains...')
-        for i in range (0,(maxresults),25):
+        # Caculate number of URLs to request since we're performing a request for four different resources instead of one
+        numresults = int(maxresults / 4)
+        for i in range (0,(numresults),25):
             urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&o=changed&r=a'.format(i))
             urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&o=changed&r=a'.format(i))
             urls.append('https://www.expireddomains.net/deleted-net-domains/?start={}&o=changed&r=a'.format(i))
@@ -348,7 +449,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         status = c15
 
                     # Skip additional reputation checks if this domain is already categorized as malicious 
-                    if c0 in maldomains_list:
+                    if c0 in maldomainsList:
                         print("[-] Skipping {} - Identified as known malware domain").format(c0)
                     else:
                         bluecoat = ''
@@ -362,7 +463,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                             ibmxforce = checkIBMxForce(c0)
                             print("[+] {}: {}".format(c0, ibmxforce))
                             # Sleep to avoid captchas
-                            time.sleep(random.randrange(10,20))
+                            doSleep(timing)
                         else:
                             bluecoat = "skipped"
                             ibmxforce = "skipped"
@@ -433,5 +534,3 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'Symantec', 'IBM']
     t.header(header)
     print(t.draw())
-
-
