@@ -4,38 +4,52 @@ Authors Joe Vest (@joevest) & Andrew Chiles (@andrewchiles)
 
 Domain name selection is an important aspect of preparation for penetration tests and especially Red Team engagements. Commonly, domains that were used previously for benign purposes and were properly categorized can be purchased for only a few dollars. Such domains can allow a team to bypass reputation based web filters and network egress restrictions for phishing and C2 related tasks. 
 
-This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec Web Filter (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
+This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec WebPulse (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
 
 ## Changes
-    - 9 April 2018
-        + Added -t switch for timing control. -t <1-5>
-        + Added Google SafeBrowsing and PhishTank reputation checks
-        + Fixed bug in IBMXForce response parsing
-    - 7 April 2018
-        + Fixed support for Symantec WebPulse Site Review (formerly Blue Coat WebFilter)
-        + Added Cisco Talos Domain Reputation check
-        + Added feature to perform a reputation check against a single non-expired domain. This is useful when monitoring reputation for domains used in ongoing campaigns and engagements.
 
-    - 6 June 2017
-        + Added python 3 support
-        + Code cleanup and bug fixes
-        + Added Status column (Available, Make Offer, Price, Backorder, etc)
+- 11 April 2018
+    + Added OCR support for CAPTCHA solving with tesseract. Thanks to t94j0 for the idea in [AIRMASTER](https://github.com/t94j0/AIRMASTER)  
+    + Added support for input file list of potential domains (-f/--filename)
+    + Changed -q/--query switch to -k/--keyword to better match its purpose
+    + Added additional error checking for ExpiredDomains.net parsing
+
+- 9 April 2018
+    + Added -t switch for timing control. -t <1-5>
+    + Added Google SafeBrowsing and PhishTank reputation checks
+    + Fixed bug in IBMXForce response parsing
+
+- 7 April 2018
+    + Fixed support for Symantec WebPulse Site Review (formerly Blue Coat WebFilter)
+    + Added Cisco Talos Domain Reputation check
+    + Added feature to perform a reputation check against a single non-expired domain. This is useful when monitoring reputation for domains used in ongoing campaigns and engagements.
+
+- 6 June 2017
+    + Added python 3 support
+    + Code cleanup and bug fixes
+    + Added Status column (Available, Make Offer, Price, Backorder, etc)
 
 ## Features
 
 - Retrieve specified number of recently expired and deleted domains (.com, .net, .org primarily) from ExpiredDomains.net
 - Retrieve available domains based on keyword search from ExpiredDomains.net
-- Perform reputation checks against the Symantec Web Filter (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
+- Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
 - Sort results by domain age (if known)
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
-## Usage
+## Installation
 
-Install Requirements
+Install Python requirements
 
     pip3 install -r requirements.txt
-    or
-    pip3 install requests texttable beautifulsoup4 lxml
+    
+Optional - Install additional OCR support dependencies
+
+- Debian/Ubuntu: `apt-get install tesseract-ocr python3-imaging`
+
+- MAC OSX: `brew install tesseract`
+
+## Usage
 
 List DomainHunter options
     
@@ -48,9 +62,13 @@ List DomainHunter options
 
     optional arguments:
       -h, --help            show this help message and exit
-      -q QUERY, --query QUERY
+      -k KEYWORD, --keyword KEYWORD
                             Keyword used to refine search results
       -c, --check           Perform domain reputation checks
+      -f FILENAME, --filename FILENAME
+                            Specify input file of line delimited domain names to
+                            check
+      --ocr                 Perform OCR on CAPTCHAs when present
       -r MAXRESULTS, --maxresults MAXRESULTS
                             Number of results to return when querying latest
                             expired/deleted domains
@@ -63,7 +81,7 @@ List DomainHunter options
                             Fastest(5) = no delay
       -w MAXWIDTH, --maxwidth MAXWIDTH
                             Width of text table
-      -v, --version         show program's version number and exit
+      -V, --version         show program's version number and exit
 
 Use defaults to check for most recent 100 domains and check reputation
     
@@ -89,9 +107,13 @@ Perform all reputation checks for a single domain
     [*] Cisco Talos: mydomain.com
     [+] mydomain.com: Web Hosting (Score: Neutral)
 
-Search for available domains with search term of "dog", max results of 100, and check reputation
+Perform all reputation checks for a list of domains at max speed with OCR of CAPTCHAs
+
+    python3 ./domainhunter.py -f <domainslist.txt> -t 5 --ocr
+
+Search for available domains with keyword term of "dog", max results of 100, and check reputation
     
-    python3 ./domainhunter.py -q dog -r 100 -c
+    python3 ./domainhunter.py -k dog -r 100 -c
      ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____
     |  _ \ / _ \|  \/  |  / \  |_ _| \ | | | | | | | | | \ | |_   _| ____|  _ \
     | | | | | | | |\/| | / _ \  | ||  \| | | |_| | | | |  \| | | | |  _| | |_) |
