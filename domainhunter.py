@@ -389,6 +389,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Generate list of URLs to query for expired/deleted domains
     urls = []
+    domain_list = []
 
     # Use the keyword string to narrow domain search if provided
     if keyword:
@@ -511,35 +512,40 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     if c15:
                         status = c15
 
-                    # Skip additional reputation checks if this domain is already categorized as malicious 
-                    if c0 in maldomainsList:
-                        print("[-] Skipping {} - Identified as known malware domain").format(c0)
-                    else:
-                        bluecoat = ''
-                        ibmxforce = ''
-                        if c3 == '-':
-                            bluecoat = 'ignored'
-                            ibmxforce = 'ignored'
-                        elif check == True:
-                            bluecoat = checkBluecoat(c0)
-                            print("[+] {}: {}".format(c0, bluecoat))
-                            ibmxforce = checkIBMXForce(c0)
-                            print("[+] {}: {}".format(c0, ibmxforce))
-                            # Sleep to avoid captchas
-                            doSleep(timing)
-                        else:
-                            bluecoat = "skipped"
-                            ibmxforce = "skipped"
-                        # Append parsed domain data to list
-                        data.append([c0,c3,c4,available,status,bluecoat,ibmxforce])
+                    if (c15 == "Available") and (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                        domain_list.append([c0, c3, c4, c15, status, available])
+
         except Exception as e: 
             #print(e)
             pass
-
-    # Check for valid results before continuing
-    if not(data):
+    if len(domain_list) == 0:
         print("[-] No results found for keyword: {0}".format(keyword))
-        quit(0)
+        exit(0)
+    else:
+        print("Checking " + str(len(domain_list)) + " possible domains for categorization")
+
+        for nested_data in domain_list:
+
+            domain = nested_data[0]
+            birthdate = nested_data[1]
+            archivedate = nested_data[2]
+            availability = nested_data[3]
+            currentstatus = nested_data[4]
+            d_available = nested_data[5]
+            bluecoat = ''
+            ibmxforce = ''
+            if check == True:
+                bluecoat = checkBluecoat(domain)
+                print("[+] {}: {}".format(domain, bluecoat))
+                ibmxforce = checkIBMXForce(domain)
+                print("[+] {}: {}".format(domain, ibmxforce))
+                # Sleep to avoid captchas
+                doSleep(timing)
+            else:
+                bluecoat = "skipped"
+                ibmxforce = "skipped"
+            # Append parsed domain data to list
+            data.append([domain,birthdate,archivedate,d_available,currentstatus,bluecoat,ibmxforce])
 
     # Sort domain list by column 2 (Birth Year)
     sortedData = sorted(data, key=lambda x: x[1], reverse=True) 
