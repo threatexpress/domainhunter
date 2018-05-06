@@ -4,17 +4,15 @@
 ## Author:      @joevest and @andrewchiles
 ## Description: Checks expired domains, reputation/categorization, and Archive.org history to determine 
 ##              good candidates for phishing and C2 domain names
-# Add OCR support for BlueCoat/SiteReview CAPTCHA using tesseract
-# Add support for input file list of potential domains
-# Add additional error checking for ExpiredDomains.net parsing
-# Changed -q/--query switch to -k/--keyword to better match its purpose
+
 import time 
 import random
 import argparse
 import json
 import base64
+import os
 
-__version__ = "20180411"
+__version__ = "20180506"
 
 ## Functions
 
@@ -34,7 +32,7 @@ def doSleep(timing):
 def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
-        postData = {'url':domain,'captcha':''}   # HTTP POST Parameters
+        postData = {'url':domain,'captcha':''}
         headers = {'User-Agent':useragent,
                     'Content-Type':'application/json; charset=UTF-8',
                     'Referer':'https://sitereview.bluecoat.com/lookup'}
@@ -51,16 +49,14 @@ def checkBluecoat(domain):
         # Print notice if CAPTCHAs are blocking accurate results and attempt to solve if --ocr
         if a == 'captcha':
             if ocr:
-                # This request is performed in a browser, but is not needed for our purposes
+                # This request is also performed by a browser, but is not needed for our purposes
                 #captcharequestURL = 'https://sitereview.bluecoat.com/resource/captcha-request'
-                #print('[*] Requesting CAPTCHA')
-                #response = s.get(url=captcharequestURL,headers=headers,cookies=cookies,verify=False)
 
                 print('[*] Received CAPTCHA challenge!')
                 captcha = solveCaptcha('https://sitereview.bluecoat.com/resource/captcha.jpg',s)
                 
                 if captcha:
-                    b64captcha = base64.b64encode(captcha.encode('utf-8')).decode('utf-8')
+                    b64captcha = base64.urlsafe_b64encode(captcha.encode('utf-8')).decode('utf-8')
                    
                     # Send CAPTCHA solution via GET since inclusion with the domain categorization request doens't work anymore
                     captchasolutionURL = 'https://sitereview.bluecoat.com/resource/captcha-request/{0}'.format(b64captcha)
@@ -124,7 +120,7 @@ def checkIBMXForce(domain):
         return "-"
 
 def checkTalos(domain):
-    url = "https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc".format(domain)
+    url = 'https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc'.format(domain)
     headers = {'User-Agent':useragent,
                'Referer':url}
 
@@ -222,10 +218,7 @@ def checkDomain(domain):
 
     if domain in maldomainsList:
         print("[!] {}: Identified as known malware domain (malwaredomains.com)".format(domain))
-    
-    mxtoolbox = checkMXToolbox(domain)
-    print("[+] {}: {}".format(domain, mxtoolbox))
-    
+      
     bluecoat = checkBluecoat(domain)
     print("[+] {}: {}".format(domain, bluecoat))
     
@@ -234,13 +227,21 @@ def checkDomain(domain):
 
     ciscotalos = checkTalos(domain)
     print("[+] {}: {}".format(domain, ciscotalos))
+
+    mxtoolbox = checkMXToolbox(domain)
+    print("[+] {}: {}".format(domain, mxtoolbox))
+
     print("")
-    return
+    
+    results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
+    return results
 
 def solveCaptcha(url,session):  
     # Downloads CAPTCHA image and saves to current directory for OCR with tesseract
     # Returns CAPTCHA string or False if error occured
+    
     jpeg = 'captcha.jpg'
+    
     try:
         response = session.get(url=url,headers=headers,verify=False, stream=True)
         if response.status_code == 200:
@@ -251,12 +252,31 @@ def solveCaptcha(url,session):
             print('[-] Error downloading CAPTCHA file!')
             return False
 
+        # Perform basic OCR without additional image enhancement
         text = pytesseract.image_to_string(Image.open(jpeg))
         text = text.replace(" ", "")
+        
+        # Remove CAPTCHA file
+        try:
+            os.remove(jpeg)
+        except OSError:
+            pass
+
         return text
+
     except Exception as e:
         print("[-] Error solving CAPTCHA - {0}".format(e))
+        
         return False
+
+def drawTable(header,data):
+    
+    data.insert(0,header)
+    t = Texttable(max_width=maxwidth)
+    t.add_rows(data)
+    t.header(header)
+    
+    return(t.draw())
 
 ## MAIN
 if __name__ == "__main__":
@@ -265,7 +285,7 @@ if __name__ == "__main__":
     parser.add_argument('-k','--keyword', help='Keyword used to refine search results', required=False, default=False, type=str, dest='keyword')
     parser.add_argument('-c','--check', help='Perform domain reputation checks', required=False, default=False, action='store_true', dest='check')
     parser.add_argument('-f','--filename', help='Specify input file of line delimited domain names to check', required=False, default=False, type=str, dest='filename')
-    parser.add_argument('--ocr', help='Perform OCR on CAPTCHAs when present', required=False, default=False, action='store_true')
+    parser.add_argument('--ocr', help='Perform OCR on CAPTCHAs when challenged', required=False, default=False, action='store_true')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains', required=False, default=100, type=int, dest='maxresults')
     parser.add_argument('-s','--single', help='Performs detailed reputation checks against a single domain name/IP.', required=False, default=False, dest='single')
     parser.add_argument('-t','--timing', help='Modifies request timing to avoid CAPTCHAs. Slowest(0) = 90-120 seconds, Default(3) = 10-20 seconds, Fastest(5) = no delay', required=False, default=3, type=int, choices=range(0,6), dest='timing')
@@ -294,9 +314,9 @@ if __name__ == "__main__":
         except Exception as e:
             print("Expired Domains Reputation Check")
             print("[-] Missing OCR dependencies: {}".format(str(e)))
-            print("[*] Install required Python dependencies by running `pip3 install -r requirements.txt`")
-            print("[*] Ubuntu\Debian - Install tesseract by running `apt-get install tesseract-ocr python3-imaging`")
-            print("[*] MAC OSX - Install tesseract with homebrew by running `brew install tesseract`")
+            print("[*] Install required Python dependencies by running: pip3 install -r requirements.txt")
+            print("[*] Ubuntu\Debian - Install tesseract by running: apt-get install tesseract-ocr python3-imaging")
+            print("[*] macOS - Install tesseract with homebrew by running: brew install tesseract")
             quit(0)
 
 ## Variables
@@ -314,22 +334,22 @@ if __name__ == "__main__":
 
     maxwidth = args.maxwidth
     
-    malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
-    expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
-    
     ocr = args.ocr
+    
+    malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
+
+    expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'  
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
             
     useragent = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
+   
     headers = {'User-Agent':useragent}
 
     requests.packages.urllib3.disable_warnings()
  
     # HTTP Session container, used to manage cookies, session tokens and other session information
     s = requests.Session()
-
-    data = []
 
     title = '''
  ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____  
@@ -357,22 +377,29 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # Retrieve reputation for a single choosen domain (Quick Mode)
     if single:
         checkDomain(single)
-        quit(0)
+        exit(0)
 
-    # Perform detailed domain reputation checks against input file
+    # Perform detailed domain reputation checks against input file, print table, and quit
     if filename:
+        # Initialize our list with an empty row for the header
+        data = []
         try:
             with open(filename, 'r') as domainsList:
                 for line in domainsList.read().splitlines():
-                    checkDomain(line)
+                    data.append(checkDomain(line))
                     doSleep(timing)
+
+                # Print results table
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+                print(drawTable(header,data))
+
         except KeyboardInterrupt:
             print('Caught keyboard interrupt. Exiting!')
-            quit(0)
+            exit(0)
         except Exception as e:
-            print('[-] {}'.format(e))
-            quit(1)
-        quit(0)
+            print('[-] Error: {}'.format(e))
+            exit(1)
+        exit(0)
      
     # Generic Proxy support 
     # TODO: add as a parameter 
@@ -389,8 +416,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Generate list of URLs to query for expired/deleted domains
     urls = []
+    domain_list = []
 
-    # Use the keyword string to narrow domain search if provided
+    # Use the keyword string to narrow domain search if provided. This generates a list of URLs to query
     if keyword:
         print('[*] Fetching expired or deleted domains containing "{}"'.format(keyword))
         for i in range (0,maxresults,25):
@@ -404,14 +432,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # If no keyword provided, retrieve list of recently expired domains in batches of 25 results.
     else:
         print('[*] Fetching expired or deleted domains...')
-        # Caculate number of URLs to request since we're performing a request for four different resources instead of one
-        numresults = int(maxresults / 4)
+        # Caculate number of URLs to request since we're performing a request for two different resources instead of one
+        numresults = int(maxresults / 2)
         for i in range (0,(numresults),25):
             urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&o=changed&r=a'.format(i))
             urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&o=changed&r=a'.format(i))
-            urls.append('https://www.expireddomains.net/deleted-net-domains/?start={}&o=changed&r=a'.format(i))
-            urls.append('https://www.expireddomains.net/deleted-org-domains/?start={}&o=changed&r=a'.format(i))
-    
+ 
     for url in urls:
 
         print("[*]  {}".format(url))
@@ -422,7 +448,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # In order to somewhat match a real cookie, but still be different, random integers are introduced
 
         r1 = random.randint(100000,999999)
-
 
         # Known good example _pk_id.10.dd0a cookie: 5abbbc772cbacfb1.1496760705.2.1496760705.1496760705
         pk_str = '5abbbc772cbacfb1' + '.1496' + str(r1) + '.2.1496' + str(r1) + '.1496' + str(r1)
@@ -435,10 +460,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         #domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
 
         domains = domainrequest.text
-
+   
         # Turn the HTML into a Beautiful Soup object
-        soup = BeautifulSoup(domains, 'lxml')
-        
+        soup = BeautifulSoup(domains, 'lxml')    
+        #print(soup)
         try:
             table = soup.find("table")
             for row in table.findAll('tr')[1:]:
@@ -449,8 +474,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                 cells = row.findAll("td")
 
                 if len(cells) >= 1:
-                    output = ""
-
                     if keyword:
 
                         c0 = row.find('td').find('a').text   # domain
@@ -466,10 +489,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c10 = cells[10].find(text=True) # status org
                         c11 = cells[11].find(text=True) # status de
                         c12 = cells[12].find(text=True) # tld registered
-                        c13 = cells[13].find(text=True) # Related Domains
-                        c14 = cells[14].find(text=True) # Domain list
-                        c15 = cells[15].find(text=True) # status
-                        c16 = cells[16].find(text=True) # related links
+                        c13 = cells[13].find(text=True) # Source List
+                        c14 = cells[14].find(text=True) # Domain Status
+                        c15 = ""                        # Related Domains
 
                     else:
                         c0 = cells[0].find(text=True)   # domain
@@ -487,12 +509,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c12 = cells[12].find(text=True) # tld registered
                         c13 = cells[13].find(text=True) # changes
                         c14 = cells[14].find(text=True) # whois
-                        c15 = ""                        # not used
-                        c16 = ""                        # not used
-                        c17 = ""                        # not used
-
-                        # Expired Domains results have an additional 'Availability' column that breaks parsing "deleted" domains
-                        #c15 = cells[15].find(text=True) # related links
 
                     available = ''
                     if c8 == "available":
@@ -507,42 +523,49 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     if c11 == "available":
                         available += ".de "
 
+                    # Only grab status for keyword searches since it doesn't exist otherwise
                     status = ""
-                    if c15:
-                        status = c15
+                    if keyword:
+                        status = c14
+                    
+                    bluecoat = ''
+                    ibmxforce = ''
+                    ciscotalos = ''
 
-                    # Skip additional reputation checks if this domain is already categorized as malicious 
-                    if c0 in maldomainsList:
-                        print("[-] Skipping {} - Identified as known malware domain").format(c0)
-                    else:
-                        bluecoat = ''
-                        ibmxforce = ''
-                        if c3 == '-':
-                            bluecoat = 'ignored'
-                            ibmxforce = 'ignored'
-                        elif check == True:
+                    if check == True:
+                        # Only perform reputation checks if domain is a .com .net. .org and not in maldomains list
+                        if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+
                             bluecoat = checkBluecoat(c0)
                             print("[+] {}: {}".format(c0, bluecoat))
                             ibmxforce = checkIBMXForce(c0)
                             print("[+] {}: {}".format(c0, ibmxforce))
+                            ciscotalos = checkTalos(c0)
+                            print("[+] {}: {}".format(c0, ciscotalos))
                             # Sleep to avoid captchas
                             doSleep(timing)
                         else:
-                            bluecoat = "skipped"
-                            ibmxforce = "skipped"
-                        # Append parsed domain data to list
-                        data.append([c0,c3,c4,available,status,bluecoat,ibmxforce])
+                            bluecoat = 'skipped'
+                            ibmxforce = 'skipped'
+                            ciscotalos = 'skipped'
+
+                    # Append parsed domain data to list
+                    domain_list.append([c0,c3,c4,available,status,bluecoat,ibmxforce,ciscotalos])               
+
         except Exception as e: 
-            #print(e)
+        #    print(e)
             pass
 
+        # Add additional sleep on requests to ExpiredDomains.net to avoid errors
+        time.sleep(5)
+
     # Check for valid results before continuing
-    if not(data):
-        print("[-] No results found for keyword: {0}".format(keyword))
-        quit(0)
+    if len(domain_list) == 0:
+        print("[-] No domain results found")
+        exit(0)
 
     # Sort domain list by column 2 (Birth Year)
-    sortedData = sorted(data, key=lambda x: x[1], reverse=True) 
+    sortedDomains = sorted(domain_list, key=lambda x: x[1], reverse=True) 
 
     # Build HTML Table
     html = ''
@@ -556,9 +579,11 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     <th>Entries</th>
                     <th>TLDs Available</th>
                     <th>Status</th>
-                    <th>Symantec</th>
+                    <th>BlueCoat</th>
                     <th>Categorization</th>
-                    <th>IBM-xForce</th>
+                    <th>IBM X-Force</th>
+                    <th>Categorization</th>
+                    <th>Cisco Talos</th>
                     <th>Categorization</th>
                     <th>WatchGuard</th>
                     <th>Namecheap</th>
@@ -570,7 +595,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     htmlFooter = '</body></html>'
 
     # Build HTML table contents
-    for i in sortedData:
+    for i in sortedDomains:
         htmlTableBody += '<tr>'
         htmlTableBody += '<td>{}</td>'.format(i[0]) # Domain
         htmlTableBody += '<td>{}</td>'.format(i[1]) # Birth
@@ -578,10 +603,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td>{}</td>'.format(i[3]) # TLDs
         htmlTableBody += '<td>{}</td>'.format(i[4]) # Status
 
-        htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/sitereview#/?search={}" target="_blank">Bluecoat</a></td>'.format(i[0]) # Bluecoat
+        htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">Bluecoat</a></td>'.format(i[0]) # Bluecoat
         htmlTableBody += '<td>{}</td>'.format(i[5]) # Bluecoat Categorization
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">IBM-xForce</a></td>'.format(i[0]) # IBM xForce
         htmlTableBody += '<td>{}</td>'.format(i[6]) # IBM x-Force Categorization
+        htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={0}" target="_blank">Cisco Talos</a></td>'.format(i[0]) # Cisco Talos
+        htmlTableBody += '<td>{}</td>'.format(i[7]) # Cisco Talos
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
@@ -598,8 +625,5 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     print("[*] Log written to {}\n".format(logfilename))
     
     # Print Text Table
-    t = Texttable(max_width=maxwidth)
-    t.add_rows(sortedData)
-    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'Symantec', 'IBM']
-    t.header(header)
-    print(t.draw())
+    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos']
+    print(drawTable(header,sortedDomains))

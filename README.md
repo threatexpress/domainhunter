@@ -8,6 +8,11 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 6 May 2018
+    + Fixed expired domains parsing when performing a keyword search
+    + Minor HTML and text table output updates
+    + Filtered reputation checks to only execute for .COM, .ORG, and .NET domains and removed check for Archive.org records when performing a default or keyword search. Credit to @christruncer for the original PR and idea.
+
 - 11 April 2018
     + Added OCR support for CAPTCHA solving with tesseract. Thanks to t94j0 for the idea in [AIRMASTER](https://github.com/t94j0/AIRMASTER)  
     + Added support for input file list of potential domains (-f/--filename)
@@ -85,11 +90,11 @@ List DomainHunter options
 
 Use defaults to check for most recent 100 domains and check reputation
     
-    python ./domainhunter.py
+    python3 ./domainhunter.py
 
 Search for 1000 most recently expired/deleted domains, but don't check reputation
 
-    python ./domainhunter.py -r 1000
+    python3 ./domainhunter.py -r 1000
 
 Perform all reputation checks for a single domain
 
