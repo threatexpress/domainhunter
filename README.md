@@ -8,6 +8,11 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 16 May 2018
+    + Update queries to increase probability of quickly finding a domain available for instant purchase. Previously, many reported domains had an "In Auction" or "Make an Offer" status. New criteria: .com|.net|.org + Alexa Ranked + Available for Purchase
+    + Improved logic to filter out uncategorized and some potentially undesirable domain categorizations in the final text table and HTML output
+    + Removed unnecessary columns from HTML report
+
 - 6 May 2018
     + Fixed expired domains parsing when performing a keyword search
     + Minor HTML and text table output updates
@@ -36,10 +41,10 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Features
 
-- Retrieve specified number of recently expired and deleted domains (.com, .net, .org primarily) from ExpiredDomains.net
+- Retrieve specified number of recently expired and deleted domains (.com, .net, .org) from ExpiredDomains.net
 - Retrieve available domains based on keyword search from ExpiredDomains.net
 - Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
-- Sort results by domain age (if known)
+- Sort results by domain age (if known) and filter for reputation
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
 ## Installation
@@ -116,9 +121,10 @@ Perform all reputation checks for a list of domains at max speed with OCR of CAP
 
     python3 ./domainhunter.py -f <domainslist.txt> -t 5 --ocr
 
-Search for available domains with keyword term of "dog", max results of 100, and check reputation
+Search for available domains with keyword term of "dog", max results of 25, and check reputation
     
-    python3 ./domainhunter.py -k dog -r 100 -c
+    python3 ./domainhunter.py -k dog -r 25 -c
+
      ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____
     |  _ \ / _ \|  \/  |  / \  |_ _| \ | | | | | | | | | \ | |_   _| ____|  _ \
     | | | | | | | |\/| | / _ \  | ||  \| | | |_| | | | |  \| | | | |  _| | |_) |
@@ -126,52 +132,22 @@ Search for available domains with keyword term of "dog", max results of 100, and
     |____/ \___/|_|  |_/_/   \_\___|_| \_| |_| |_|\___/|_| \_| |_| |_____|_| \_\
 
     Expired Domains Reputation Checker
+    Authors: @joevest and @andrewchiles
 
-    DISCLAIMER:
-    This is for educational purposes only!
+    DISCLAIMER: This is for educational purposes only!
     It is designed to promote education and the improvement of computer/cyber security.
     The authors or employers are not liable for any illegal act or misuse performed by any user of this tool.
     If you plan to use this content for illegal purpose, don't.  Have a nice day :)
 
-    Estimated Max Run Time: 33 minutes
-
     [*] Downloading malware domain list from http://mirror1.malwaredomains.com/files/justdomains
-    [*] Fetching expired or deleted domains containing "dog"...
+
+    [*] Fetching expired or deleted domains containing "dog"
     [*]  https://www.expireddomains.net/domain-name-search/?q=dog
-    [*] BlueCoat Check: Dog.org.au
-    [+] Dog.org.au is categorized as: Uncategorized
-    [*] IBM xForce Check: Dog.org.au
-    [+] Dog.org.au is categorized as: Not found.
-    [*] BlueCoat Check: Dog.asia
-    [+] Dog.asia is categorized as: Uncategorized
-    [*] IBM xForce Check: Dog.asia
-    [+] Dog.asia is categorized as: Not found.
-    [*] BlueCoat Check: HomeDog.net
-    [+] HomeDog.net is categorized as: Uncategorized
-    [*] IBM xForce Check: HomeDog.net
-    [+] HomeDog.net is categorized as: Not found.
-    [*] BlueCoat Check: PolyDogs.com
-    [+] PolyDogs.com is categorized as: Uncategorized
-    [*] IBM xForce Check: PolyDogs.com
-    [+] PolyDogs.com is categorized as: Not found.
-    [*] BlueCoat Check: SaltyDog.it
-    [+] SaltyDog.it is categorized as: Uncategorized
-    [*] IBM xForce Check: SaltyDog.it
-    [+] SaltyDog.it is categorized as: Not found.
-    [*]  https://www.expireddomains.net/domain-name-search/?start=25&q=dog
-    [*] BlueCoat Check: FetchDoggieStore.com
-    [+] FetchDoggieStore.com is categorized as: Society/Daily Living
-    [*] IBM xForce Check: FetchDoggieStore.com
-    [+] FetchDoggieStore.com is categorized as: {u'General Business': True}
 
-## Report Header Reference
-
- - Domain: Target Domain
- - Birth: First seen on Archive.org
- - Entries: Number of entries in Archive.org
- - TLDs Available: Top level top available
- - Bluecoat Categorization: Bluecoat category
- - IBM-xForce Categorization: IBM-xForce category
- - WatchGuard: Watchguard reputation
- - Namecheap: Link to namecheap.com
- - Archive.org: Link to archive.org
+    [*] Performing domain reputation checks for 8 domains.
+    [*] BlueCoat: doginmysuitcase.com
+    [+] doginmysuitcase.com: Travel
+    [*] IBM xForce: doginmysuitcase.com
+    [+] doginmysuitcase.com: Not found.
+    [*] Cisco Talos: doginmysuitcase.com
+    [+] doginmysuitcase.com: Uncategorized

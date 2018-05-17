@@ -104,7 +104,9 @@ def checkIBMXForce(domain):
 
         elif not responseJSON['result']['cats']:
             a = 'Uncategorized'
-        
+	
+	## TO-DO - Add noticed when "intrusion" category is returned. This is indication of rate limit / brute-force protection hit on the endpoint        
+
         else:
             categories = ''
             # Parse all dictionary keys and append to single string to get Category names
@@ -132,6 +134,8 @@ def checkTalos(domain):
 
         if 'error' in responseJSON:
             a = str(responseJSON['error'])
+            if a == "Unfortunately, we can't find any results for your search.":
+                a = 'Uncategorized'
         
         elif responseJSON['category'] is None:
             a = 'Uncategorized'
@@ -414,29 +418,33 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # Use proxy like Burp for debugging request/parsing errors
     #domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
 
+    # Lists for our ExpiredDomains results
+    domain_list = []
+    data = []
+
     # Generate list of URLs to query for expired/deleted domains
     urls = []
-    domain_list = []
-
+    
     # Use the keyword string to narrow domain search if provided. This generates a list of URLs to query
+
     if keyword:
         print('[*] Fetching expired or deleted domains containing "{}"'.format(keyword))
         for i in range (0,maxresults,25):
             if i == 0:
-                urls.append("{}/?q={}".format(expireddomainsqueryURL,keyword))
+                urls.append("{}/?q={}&fwhois=22&falexa=1".format(expireddomainsqueryURL,keyword))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(keyword)
             else:
-                urls.append("{}/?start={}&q={}".format(expireddomainsqueryURL,i,keyword))
+                urls.append("{}/?start={}&q={}&fwhois=22&falexa=1".format(expireddomainsqueryURL,i,keyword))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),keyword)
     
-    # If no keyword provided, retrieve list of recently expired domains in batches of 25 results.
+    # If no keyword provided, generate list of recently expired domains URLS (batches of 25 results).
     else:
         print('[*] Fetching expired or deleted domains...')
         # Caculate number of URLs to request since we're performing a request for two different resources instead of one
         numresults = int(maxresults / 2)
         for i in range (0,(numresults),25):
-            urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&o=changed&r=a'.format(i))
-            urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&o=changed&r=a'.format(i))
+            urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa=1'.format(i))
+            urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa=1'.format(i))
  
     for url in urls:
 
@@ -493,6 +501,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c14 = cells[14].find(text=True) # Domain Status
                         c15 = ""                        # Related Domains
 
+                    # Non-keyword search table format is slightly different
                     else:
                         c0 = cells[0].find(text=True)   # domain
                         c1 = cells[1].find(text=True)   # bl
@@ -527,45 +536,66 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     status = ""
                     if keyword:
                         status = c14
-                    
-                    bluecoat = ''
-                    ibmxforce = ''
-                    ciscotalos = ''
 
-                    if check == True:
-                        # Only perform reputation checks if domain is a .com .net. .org and not in maldomains list
-                        if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
-
-                            bluecoat = checkBluecoat(c0)
-                            print("[+] {}: {}".format(c0, bluecoat))
-                            ibmxforce = checkIBMXForce(c0)
-                            print("[+] {}: {}".format(c0, ibmxforce))
-                            ciscotalos = checkTalos(c0)
-                            print("[+] {}: {}".format(c0, ciscotalos))
-                            # Sleep to avoid captchas
-                            doSleep(timing)
-                        else:
-                            bluecoat = 'skipped'
-                            ibmxforce = 'skipped'
-                            ciscotalos = 'skipped'
-
-                    # Append parsed domain data to list
-                    domain_list.append([c0,c3,c4,available,status,bluecoat,ibmxforce,ciscotalos])               
+                    # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
+                    if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                        domain_list.append([c0,c3,c4,available,status])               
 
         except Exception as e: 
-        #    print(e)
+            #print(e)
             pass
 
         # Add additional sleep on requests to ExpiredDomains.net to avoid errors
         time.sleep(5)
 
-    # Check for valid results before continuing
+    # Check for valid list results before continuing
     if len(domain_list) == 0:
-        print("[-] No domain results found")
+        print("[-] No domain results found or none are currently available for purchase!")
         exit(0)
+    else:
+        if check:
+            print("\n[*] Performing reputation checks for {} domains".format(len(domain_list)))
+        
+        for domain_entry in domain_list:
+            domain = domain_entry[0]
+            birthdate = domain_entry[1]
+            archiveentries = domain_entry[2]
+            availabletlds = domain_entry[3]
+            status = domain_entry[4]
+            bluecoat = ''
+            ibmxforce = ''
+            ciscotalos = ''
+
+            # Perform domain reputation checks
+            if check:
+                
+                bluecoat = checkBluecoat(domain)
+                print("[+] {}: {}".format(domain, bluecoat))
+                ibmxforce = checkIBMXForce(domain)
+                print("[+] {}: {}".format(domain, ibmxforce))
+                ciscotalos = checkTalos(domain)
+                print("[+] {}: {}".format(domain, ciscotalos))
+                # Sleep to avoid captchas
+                doSleep(timing)
+
+            # Mark reputation checks as skipped if -c flag not present
+            else:
+                bluecoat = '-'
+                ibmxforce = '-'
+                ciscotalos = '-'
+
+            # Append entry to new list with reputation if at least one service reports reputation
+            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','phishing')) and ibmxforce == "Not found." and ciscotalos == "Uncategorized"):
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
 
     # Sort domain list by column 2 (Birth Year)
-    sortedDomains = sorted(domain_list, key=lambda x: x[1], reverse=True) 
+    sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
+
+    if len(sortedDomains) == 0:
+        print("\n[-] No domains discovered with a desireable categorization!")
+        exit(0)
+    else:
+        print("\n[*] {} of {} domains discovered with a potentially desireable categorization!".format(len(sortedDomains),len(domain_list)))
 
     # Build HTML Table
     html = ''
@@ -580,11 +610,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     <th>TLDs Available</th>
                     <th>Status</th>
                     <th>BlueCoat</th>
-                    <th>Categorization</th>
                     <th>IBM X-Force</th>
-                    <th>Categorization</th>
                     <th>Cisco Talos</th>
-                    <th>Categorization</th>
                     <th>WatchGuard</th>
                     <th>Namecheap</th>
                     <th>Archive.org</th>
@@ -603,12 +630,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td>{}</td>'.format(i[3]) # TLDs
         htmlTableBody += '<td>{}</td>'.format(i[4]) # Status
 
-        htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">Bluecoat</a></td>'.format(i[0]) # Bluecoat
-        htmlTableBody += '<td>{}</td>'.format(i[5]) # Bluecoat Categorization
-        htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">IBM-xForce</a></td>'.format(i[0]) # IBM xForce
-        htmlTableBody += '<td>{}</td>'.format(i[6]) # IBM x-Force Categorization
-        htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={0}" target="_blank">Cisco Talos</a></td>'.format(i[0]) # Cisco Talos
-        htmlTableBody += '<td>{}</td>'.format(i[7]) # Cisco Talos
+        htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">{}</a></td>'.format(i[5]) # Bluecoat
+        htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
+        htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
