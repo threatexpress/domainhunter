@@ -8,6 +8,9 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 17 September 2018
+    + Fixed Symantec WebPulse Site Review parsing errors caused by service updates
+
 - 18 May 2018
     + Add --alexa switch to control Alexa ranked site filtering
 
