@@ -8,6 +8,9 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 18 May 2018
+    + Add --alexa switch to control Alexa ranked site filtering
+
 - 16 May 2018
     + Update queries to increase probability of quickly finding a domain available for instant purchase. Previously, many reported domains had an "In Auction" or "Make an Offer" status. New criteria: .com|.net|.org + Alexa Ranked + Available for Purchase
     + Improved logic to filter out uncategorized and some potentially undesirable domain categorizations in the final text table and HTML output

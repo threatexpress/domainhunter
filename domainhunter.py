@@ -5,6 +5,10 @@
 ## Description: Checks expired domains, reputation/categorization, and Archive.org history to determine 
 ##              good candidates for phishing and C2 domain names
 
+# If the expected response format from a provider changes, use the traceback module to get a full stack trace without removing try/catch blocks
+#import traceback
+#traceback.print_exc()
+
 import time 
 import random
 import argparse
@@ -12,7 +16,7 @@ import json
 import base64
 import os
 
-__version__ = "20180506"
+__version__ = "20180917"
 
 ## Functions
 
@@ -34,13 +38,14 @@ def checkBluecoat(domain):
         url = 'https://sitereview.bluecoat.com/resource/lookup'
         postData = {'url':domain,'captcha':''}
         headers = {'User-Agent':useragent,
-                    'Content-Type':'application/json; charset=UTF-8',
-                    'Referer':'https://sitereview.bluecoat.com/lookup'}
+                   'Accept':'application/json, text/plain, */*',
+                   'Content-Type':'application/json; charset=UTF-8',
+                   'Referer':'https://sitereview.bluecoat.com/lookup'}
 
         print('[*] BlueCoat: {}'.format(domain))
         response = s.post(url,headers=headers,json=postData,verify=False)
         responseJSON = json.loads(response.text)
-
+        
         if 'errorType' in responseJSON:
             a = responseJSON['errorType']
         else:
@@ -285,7 +290,18 @@ def drawTable(header,data):
 ## MAIN
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='Finds expired domains, domain categorization, and Archive.org history to determine good candidates for C2 and phishing domains')
+
+    parser = argparse.ArgumentParser(
+        description='Finds expired domains, domain categorization, and Archive.org history to determine good candidates for C2 and phishing domains',
+        epilog = '''Examples:
+./domainhunter.py -k apples -c --ocr -t5
+./domainhunter.py --check --ocr -t3
+./domainhunter.py --single mydomain.com
+./domainhunter.py --keyword tech --check --ocr --timing 5 --alexa
+./domaihunter.py --filename inputlist.txt --ocr --timing 5''',
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    parser.add_argument('-a','--alexa', help='Filter results to Alexa listings', required=False, default=0, action='store_const', const=1)
     parser.add_argument('-k','--keyword', help='Keyword used to refine search results', required=False, default=False, type=str, dest='keyword')
     parser.add_argument('-c','--check', help='Perform domain reputation checks', required=False, default=False, action='store_true', dest='check')
     parser.add_argument('-f','--filename', help='Specify input file of line delimited domain names to check', required=False, default=False, type=str, dest='filename')
@@ -296,6 +312,8 @@ if __name__ == "__main__":
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, default=400, type=int, dest='maxwidth')
     parser.add_argument('-V','--version', action='version',version='%(prog)s {version}'.format(version=__version__))
     args = parser.parse_args()
+
+ 
 
     # Load dependent modules
     try:
@@ -324,6 +342,9 @@ if __name__ == "__main__":
             quit(0)
 
 ## Variables
+
+    alexa = args.alexa
+
     keyword = args.keyword
 
     check = args.check
@@ -431,10 +452,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         print('[*] Fetching expired or deleted domains containing "{}"'.format(keyword))
         for i in range (0,maxresults,25):
             if i == 0:
-                urls.append("{}/?q={}&fwhois=22&falexa=1".format(expireddomainsqueryURL,keyword))
+                urls.append("{}/?q={}&fwhois=22&falexa={}".format(expireddomainsqueryURL,keyword,alexa))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(keyword)
             else:
-                urls.append("{}/?start={}&q={}&fwhois=22&falexa=1".format(expireddomainsqueryURL,i,keyword))
+                urls.append("{}/?start={}&q={}&fwhois=22&falexa={}".format(expireddomainsqueryURL,i,keyword,alexa))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),keyword)
     
     # If no keyword provided, generate list of recently expired domains URLS (batches of 25 results).
@@ -443,8 +464,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # Caculate number of URLs to request since we're performing a request for two different resources instead of one
         numresults = int(maxresults / 2)
         for i in range (0,(numresults),25):
-            urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa=1'.format(i))
-            urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa=1'.format(i))
+            urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}'.format(i,alexa))
+            urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}'.format(i,alexa))
  
     for url in urls:
 
@@ -585,7 +606,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                 ciscotalos = '-'
 
             # Append entry to new list with reputation if at least one service reports reputation
-            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','phishing')) and ibmxforce == "Not found." and ciscotalos == "Uncategorized"):
+            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing')) and ibmxforce == "Not found." and ciscotalos == "Uncategorized"):
                 data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
 
     # Sort domain list by column 2 (Birth Year)
