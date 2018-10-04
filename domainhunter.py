@@ -639,6 +639,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         domain_list_unique = []
         [domain_list_unique.append(item) for item in domain_list if item not in domain_list_unique]
 
+        index = 1
+
         for domain_entry in domain_list_unique:
             domain = domain_entry[0]
             birthdate = domain_entry[1]
@@ -651,7 +653,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
             # Perform domain reputation checks
             if check:
-                
+                print("[*] Domain {} of {}".format(str(index),str(len(domain_list))))
                 bluecoat = checkBluecoat(domain)
                 print("[+] {}: {}".format(domain, bluecoat))
                 ibmxforce = checkIBMXForce(domain)
@@ -670,6 +672,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             # Append entry to new list with reputation if at least one service reports reputation
             if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing')) and ibmxforce == "Not found." and ciscotalos == "Uncategorized"):
                 data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
+
+            index += 1
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
