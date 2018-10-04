@@ -293,7 +293,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description='Finds expired domains, domain categorization, and Archive.org history to determine good candidates for C2 and phishing domains',
-        epilog = '''Examples:
+        epilog = '''
+Examples:
 ./domainhunter.py -k apples -c --ocr -t5
 ./domainhunter.py --check --ocr -t3
 ./domainhunter.py --single mydomain.com
@@ -312,8 +313,6 @@ if __name__ == "__main__":
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, default=400, type=int, dest='maxwidth')
     parser.add_argument('-V','--version', action='version',version='%(prog)s {version}'.format(version=__version__))
     args = parser.parse_args()
-
- 
 
     # Load dependent modules
     try:
@@ -495,6 +494,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         #print(soup)
         try:
             table = soup.find("table")
+
+            rows = table.findAll('tr')[1:]
             for row in table.findAll('tr')[1:]:
 
                 # Alternative way to extract domain name
@@ -510,60 +511,118 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         c2 = cells[2].find(text=True)   # domainpop
                         c3 = cells[3].find(text=True)   # birth
                         c4 = cells[4].find(text=True)   # Archive.org entries
-                        c5 = cells[5].find(text=True)   # similarweb
-                        c6 = cells[6].find(text=True)   # similarweb country code
-                        c7 = cells[7].find(text=True)   # Dmoz.org
-                        c8 = cells[8].find(text=True)   # status com
-                        c9 = cells[9].find(text=True)   # status net
-                        c10 = cells[10].find(text=True) # status org
-                        c11 = cells[11].find(text=True) # status de
-                        c12 = cells[12].find(text=True) # tld registered
-                        c13 = cells[13].find(text=True) # Source List
-                        c14 = cells[14].find(text=True) # Domain Status
-                        c15 = ""                        # Related Domains
+                        c5 = cells[5].find(text=True)   # Alexa
+                        c6 = cells[6].find(text=True)   # Dmoz.org
+                        c7 = cells[7].find(text=True)   # status com
+                        c8 = cells[8].find(text=True)   # status net
+                        c9 = cells[9].find(text=True)   # status org
+                        c10 = cells[10].find(text=True) # status de
+                        c11 = cells[11].find(text=True) # TLDs
+                        c12 = cells[12].find(text=True) # RDT
+                        c13 = cells[13].find(text=True) # List
+                        c14 = cells[14].find(text=True) # Status
+                        c15 = ""                        # Links 
+
+                        # create available TLD list
+                        available = ''
+                        if c7 == "available":
+                            available += ".com "
+
+                        if c8 == "available":
+                            available += ".net "
+
+                        if c9 == "available":
+                            available += ".org "
+
+                        if c10 == "available":
+                            available += ".de "
+                        
+                        # Only grab status for keyword searches since it doesn't exist otherwise
+                        status = ""
+                        if keyword:
+                            status = c14
+                        
+                        # Only add Expired, not Pending, Backorder, etc
+                        if c13 == "Expired":
+                            # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
+                            #if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                            #    domain_list.append([c0,c3,c4,available,status]) 
+
+                            # Add other TLDs to list if marked available
+                            if (c7 == "available") and (c0 not in maldomainsList):
+                                dom = c0.split(".")[0] + ".com"
+                                domain_list.append([dom,c3,c4,available,status]) 
+
+                            if (c8 == "available") and (c0 not in maldomainsList):
+                                dom = c0.split(".")[0] + ".net"
+                                domain_list.append([dom,c3,c4,available,status])    
+
+                            if (c9 == "available") and (c0 not in maldomainsList):
+                                dom = c0.split(".")[0] + ".org"
+                                domain_list.append([dom,c3,c4,available,status])  
+
+                            if (c10 == "available") and (c0 not in maldomainsList):
+                                dom = c0.split(".")[0] + ".de"
+                                domain_list.append([dom,c3,c4,available,status])  
 
                     # Non-keyword search table format is slightly different
                     else:
+                    
                         c0 = cells[0].find(text=True)   # domain
                         c1 = cells[1].find(text=True)   # bl
                         c2 = cells[2].find(text=True)   # domainpop
                         c3 = cells[3].find(text=True)   # birth
                         c4 = cells[4].find(text=True)   # Archive.org entries
-                        c5 = cells[5].find(text=True)   # similarweb
-                        c6 = cells[6].find(text=True)   # similarweb country code
-                        c7 = cells[7].find(text=True)   # Dmoz.org
-                        c8 = cells[8].find(text=True)   # status com
-                        c9 = cells[9].find(text=True)   # status net
-                        c10 = cells[10].find(text=True) # status org
-                        c11 = cells[11].find(text=True) # status de
-                        c12 = cells[12].find(text=True) # tld registered
-                        c13 = cells[13].find(text=True) # changes
-                        c14 = cells[14].find(text=True) # whois
+                        c5 = cells[5].find(text=True)   # Alexa
+                        c6 = cells[6].find(text=True)   # Dmoz.org
+                        c7 = cells[7].find(text=True)   # status com
+                        c8 = cells[8].find(text=True)   # status net
+                        c9 = cells[9].find(text=True)   # status org
+                        c10 = cells[10].find(text=True) # status de
+                        c11 = cells[11].find(text=True) # TLDs
+                        c12 = cells[12].find(text=True) # RDT
+                        c13 = cells[13].find(text=True) # End Date
+                        c14 = cells[14].find(text=True) # Links
+                        
+                        # create available TLD list
+                        available = ''
+                        if c7 == "available":
+                            available += ".com "
 
-                    available = ''
-                    if c8 == "available":
-                        available += ".com "
+                        if c8 == "available":
+                            available += ".net "
 
-                    if c9 == "available":
-                        available += ".net "
+                        if c9 == "available":
+                            available += ".org "
 
-                    if c10 == "available":
-                        available += ".org "
+                        if c10 == "available":
+                            available += ".de "
 
-                    if c11 == "available":
-                        available += ".de "
+                        status = ""
 
-                    # Only grab status for keyword searches since it doesn't exist otherwise
-                    status = ""
-                    if keyword:
-                        status = c14
+                        # Add other TLDs to list if marked available
+                        if (c7 == "available") and (c0 not in maldomainsList):
+                            dom = c0.split(".")[0] + ".com"
+                            domain_list.append([dom,c3,c4,available,status]) 
 
-                    # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
-                    if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
-                        domain_list.append([c0,c3,c4,available,status])               
+                        if (c8 == "available") and (c0 not in maldomainsList):
+                            dom = c0.split(".")[0] + ".net"
+                            domain_list.append([dom,c3,c4,available,status])    
+                        
+                        if (c9 == "available") and (c0 not in maldomainsList):
+                            dom = c0.split(".")[0] + ".org"
+                            domain_list.append([dom,c3,c4,available,status])  
+                    
+                        if (c10 == "available") and (c0 not in maldomainsList):
+                            dom = c0.split(".")[0] + ".de"
+                            domain_list.append([dom,c3,c4,available,status])  
 
+                        # Append original parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
+                        #if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                        #    domain_list.append([c0,c3,c4,available,status]) 
+                        
         except Exception as e: 
-            #print(e)
+            print("[!] Error: ", e)
             pass
 
         # Add additional sleep on requests to ExpiredDomains.net to avoid errors
@@ -577,7 +636,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         if check:
             print("\n[*] Performing reputation checks for {} domains".format(len(domain_list)))
         
-        for domain_entry in domain_list:
+        domain_list_unique = []
+        [domain_list_unique.append(item) for item in domain_list if item not in domain_list_unique]
+
+        for domain_entry in domain_list_unique:
             domain = domain_entry[0]
             birthdate = domain_entry[1]
             archiveentries = domain_entry[2]

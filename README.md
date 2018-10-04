@@ -8,6 +8,12 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 4 October 2018
+   + Tweaked parsing logic
+   + Fixed changes parsed columns indexes
+   + Added additional TLDs to found TLD if the TLD is marked available.
+        + If thisistest.com is found and thisistest.org is mark available, thisistest.org will be added to the search list
+
 - 17 September 2018
     + Fixed Symantec WebPulse Site Review parsing errors caused by service updates
 
@@ -67,37 +73,42 @@ Optional - Install additional OCR support dependencies
 
 ## Usage
 
-List DomainHunter options
-    
-    python3 domainhunter.py -h
-    usage: domainhunter.py [-h] [-q QUERY] [-c] [-r MAXRESULTS] [-s SINGLE]
-                           [-w MAXWIDTH] [-v]
+    usage: domainhunter.py [-h] [-a] [-k KEYWORD] [-c] [-f FILENAME] [--ocr]
+                        [-r MAXRESULTS] [-s SINGLE] [-t {0,1,2,3,4,5}]
+                        [-w MAXWIDTH] [-V]
 
-    Finds expired domains, domain categorization, and Archive.org history to
-    determine good candidates for C2 and phishing domains
+    Finds expired domains, domain categorization, and Archive.org history to determine good candidates for C2 and phishing domains
 
     optional arguments:
-      -h, --help            show this help message and exit
-      -k KEYWORD, --keyword KEYWORD
+    -h, --help            show this help message and exit
+    -a, --alexa           Filter results to Alexa listings
+    -k KEYWORD, --keyword KEYWORD
                             Keyword used to refine search results
-      -c, --check           Perform domain reputation checks
-      -f FILENAME, --filename FILENAME
+    -c, --check           Perform domain reputation checks
+    -f FILENAME, --filename FILENAME
                             Specify input file of line delimited domain names to
                             check
-      --ocr                 Perform OCR on CAPTCHAs when present
-      -r MAXRESULTS, --maxresults MAXRESULTS
+    --ocr                 Perform OCR on CAPTCHAs when challenged
+    -r MAXRESULTS, --maxresults MAXRESULTS
                             Number of results to return when querying latest
                             expired/deleted domains
-      -s SINGLE, --single SINGLE
+    -s SINGLE, --single SINGLE
                             Performs detailed reputation checks against a single
                             domain name/IP.
-      -t {0,1,2,3,4,5}, --timing {0,1,2,3,4,5}
+    -t {0,1,2,3,4,5}, --timing {0,1,2,3,4,5}
                             Modifies request timing to avoid CAPTCHAs. Slowest(0)
                             = 90-120 seconds, Default(3) = 10-20 seconds,
                             Fastest(5) = no delay
-      -w MAXWIDTH, --maxwidth MAXWIDTH
+    -w MAXWIDTH, --maxwidth MAXWIDTH
                             Width of text table
-      -V, --version         show program's version number and exit
+    -V, --version         show program's version number and exit
+
+    Examples:
+    ./domainhunter.py -k apples -c --ocr -t5
+    ./domainhunter.py --check --ocr -t3
+    ./domainhunter.py --single mydomain.com
+    ./domainhunter.py --keyword tech --check --ocr --timing 5 --alexa
+    ./domaihunter.py --filename inputlist.txt --ocr --timing 5
 
 Use defaults to check for most recent 100 domains and check reputation
     
