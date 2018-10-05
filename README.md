@@ -8,11 +8,12 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 5 October 2018
+   + Fixed logic for filtering domains with desirable categorizations. Previously, some error conditions weren't filtered and would result in domains without a valid categorization making it into the final list.
+
 - 4 October 2018
    + Tweaked parsing logic
    + Fixed changes parsed columns indexes
-   + Added additional TLDs to found TLD if the TLD is marked available.
-        + If thisistest.com is found and thisistest.org is mark available, thisistest.org will be added to the search list
 
 - 17 September 2018
     + Fixed Symantec WebPulse Site Review parsing errors caused by service updates

@@ -1,6 +1,7 @@
 *.html
 *.txt
 *.jpg
+Pipfile*
 
 .vscode/*
 !.vscode/settings.json

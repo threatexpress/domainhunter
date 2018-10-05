@@ -16,7 +16,7 @@ import json
 import base64
 import os
 
-__version__ = "20180917"
+__version__ = "20181005"
 
 ## Functions
 
@@ -86,7 +86,7 @@ def checkBluecoat(domain):
 
     except Exception as e:
         print('[-] Error retrieving Bluecoat reputation! {0}'.format(e))
-        return "-"
+        return "error"
 
 def checkIBMXForce(domain):
     try: 
@@ -122,9 +122,9 @@ def checkIBMXForce(domain):
 
         return a
 
-    except:
-        print('[-] Error retrieving IBM x-Force reputation!')
-        return "-"
+    except Exception as e:
+        print('[-] Error retrieving IBM-Xforce reputation! {0}'.format(e))
+        return "error"
 
 def checkTalos(domain):
     url = 'https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc'.format(domain)
@@ -150,9 +150,9 @@ def checkTalos(domain):
        
         return a
 
-    except:
-        print('[-] Error retrieving Talos reputation!')
-        return "-"
+    except Exception as e:
+        print('[-] Error retrieving Talos reputation! {0}'.format(e))
+        return "error"
 
 def checkMXToolbox(domain):
     url = 'https://mxtoolbox.com/Public/Tools/BrandReputation.aspx'
@@ -211,7 +211,7 @@ def checkMXToolbox(domain):
 
     except Exception as e:
         print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
-        return "-"
+        return "error"
 
 def downloadMalwareDomains(malwaredomainsURL):
     url = malwaredomainsURL
@@ -403,7 +403,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         checkDomain(single)
         exit(0)
 
-    # Perform detailed domain reputation checks against input file, print table, and quit
+    # Perform detailed domain reputation checks against input file, print table, and quit. This does not generate an HTML report
     if filename:
         # Initialize our list with an empty row for the header
         data = []
@@ -451,10 +451,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         print('[*] Fetching expired or deleted domains containing "{}"'.format(keyword))
         for i in range (0,maxresults,25):
             if i == 0:
-                urls.append("{}/?q={}&fwhois=22&falexa={}".format(expireddomainsqueryURL,keyword,alexa))
+                urls.append("{}/?q={}&fwhois=22&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}".format(expireddomainsqueryURL,keyword,alexa))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(keyword)
             else:
-                urls.append("{}/?start={}&q={}&fwhois=22&falexa={}".format(expireddomainsqueryURL,i,keyword,alexa))
+                urls.append("{}/?start={}&q={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&fwhois=22&falexa={}".format(expireddomainsqueryURL,i,keyword,alexa))
                 headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),keyword)
     
     # If no keyword provided, generate list of recently expired domains URLS (batches of 25 results).
@@ -545,25 +545,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         # Only add Expired, not Pending, Backorder, etc
                         if c13 == "Expired":
                             # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
-                            #if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
-                            #    domain_list.append([c0,c3,c4,available,status]) 
-
-                            # Add other TLDs to list if marked available
-                            if (c7 == "available") and (c0 not in maldomainsList):
-                                dom = c0.split(".")[0] + ".com"
-                                domain_list.append([dom,c3,c4,available,status]) 
-
-                            if (c8 == "available") and (c0 not in maldomainsList):
-                                dom = c0.split(".")[0] + ".net"
-                                domain_list.append([dom,c3,c4,available,status])    
-
-                            if (c9 == "available") and (c0 not in maldomainsList):
-                                dom = c0.split(".")[0] + ".org"
-                                domain_list.append([dom,c3,c4,available,status])  
-
-                            if (c10 == "available") and (c0 not in maldomainsList):
-                                dom = c0.split(".")[0] + ".de"
-                                domain_list.append([dom,c3,c4,available,status])  
+                            if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                                domain_list.append([c0,c3,c4,available,status]) 
 
                     # Non-keyword search table format is slightly different
                     else:
@@ -600,26 +583,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
                         status = ""
 
-                        # Add other TLDs to list if marked available
-                        if (c7 == "available") and (c0 not in maldomainsList):
-                            dom = c0.split(".")[0] + ".com"
-                            domain_list.append([dom,c3,c4,available,status]) 
-
-                        if (c8 == "available") and (c0 not in maldomainsList):
-                            dom = c0.split(".")[0] + ".net"
-                            domain_list.append([dom,c3,c4,available,status])    
-                        
-                        if (c9 == "available") and (c0 not in maldomainsList):
-                            dom = c0.split(".")[0] + ".org"
-                            domain_list.append([dom,c3,c4,available,status])  
-                    
-                        if (c10 == "available") and (c0 not in maldomainsList):
-                            dom = c0.split(".")[0] + ".de"
-                            domain_list.append([dom,c3,c4,available,status])  
-
                         # Append original parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
-                        #if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
-                        #    domain_list.append([c0,c3,c4,available,status]) 
+                        if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
+                            domain_list.append([c0,c3,c4,available,status]) 
                         
         except Exception as e: 
             print("[!] Error: ", e)
@@ -633,13 +599,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         print("[-] No domain results found or none are currently available for purchase!")
         exit(0)
     else:
-        if check:
-            print("\n[*] Performing reputation checks for {} domains".format(len(domain_list)))
-        
         domain_list_unique = []
         [domain_list_unique.append(item) for item in domain_list if item not in domain_list_unique]
 
-        index = 1
+        # Print number of domains to perform reputation checks against
+        if check:
+            print("\n[*] Performing reputation checks for {} domains".format(len(domain_list_unique)))
 
         for domain_entry in domain_list_unique:
             domain = domain_entry[0]
@@ -647,42 +612,38 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             archiveentries = domain_entry[2]
             availabletlds = domain_entry[3]
             status = domain_entry[4]
-            bluecoat = ''
-            ibmxforce = ''
-            ciscotalos = ''
+            bluecoat = '-'
+            ibmxforce = '-'
+            ciscotalos = '-'
 
             # Perform domain reputation checks
             if check:
-                print("[*] Domain {} of {}".format(str(index),str(len(domain_list))))
+                
                 bluecoat = checkBluecoat(domain)
                 print("[+] {}: {}".format(domain, bluecoat))
                 ibmxforce = checkIBMXForce(domain)
                 print("[+] {}: {}".format(domain, ibmxforce))
                 ciscotalos = checkTalos(domain)
                 print("[+] {}: {}".format(domain, ciscotalos))
+                print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
 
-            # Mark reputation checks as skipped if -c flag not present
-            else:
-                bluecoat = '-'
-                ibmxforce = '-'
-                ciscotalos = '-'
-
             # Append entry to new list with reputation if at least one service reports reputation
-            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing')) and ibmxforce == "Not found." and ciscotalos == "Uncategorized"):
+            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
+                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error'))):
+                
                 data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
-
-            index += 1
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
 
-    if len(sortedDomains) == 0:
-        print("\n[-] No domains discovered with a desireable categorization!")
-        exit(0)
-    else:
-        print("\n[*] {} of {} domains discovered with a potentially desireable categorization!".format(len(sortedDomains),len(domain_list)))
+    if check:
+        if len(sortedDomains) == 0:
+            print("[-] No domains discovered with a desireable categorization!")
+            exit(0)
+        else:
+            print("[*] {} of {} domains discovered with a potentially desireable categorization!".format(len(sortedDomains),len(domain_list)))
 
     # Build HTML Table
     html = ''
