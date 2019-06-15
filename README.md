@@ -1,5 +1,8 @@
 # Domain Hunter
 
+*NOTE: This tool cannot currently pull newly expired domains due to a recent change in ExpiredDomains.net that requires authentication. However, automated domain reputation checks for a single domain or from a file of names are still functional. *
+
+
 Authors Joe Vest (@joevest) & Andrew Chiles (@andrewchiles)
 
 Domain name selection is an important aspect of preparation for penetration tests and especially Red Team engagements. Commonly, domains that were used previously for benign purposes and were properly categorized can be purchased for only a few dollars. Such domains can allow a team to bypass reputation based web filters and network egress restrictions for phishing and C2 related tasks. 
