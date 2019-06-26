@@ -15,6 +15,7 @@ import argparse
 import json
 import base64
 import os
+import csv
 
 __version__ = "20190626"
 
@@ -44,7 +45,11 @@ def checkBluecoat(domain, proxies):
                    'Referer':'https://sitereview.bluecoat.com/lookup'}
 
         print('[*] BlueCoat: {}'.format(domain))
-        response = s.post(url,headers=headers,json=postData,verify=False)
+        if proxies:
+            response = s.post(url,headers=headers,json=postData,proxies=proxies,verify=False)
+        else:
+            response = s.post(url,headers=headers,json=postData,verify=False)
+
         responseJSON = json.loads(response.text)
         
         if 'errorType' in responseJSON:
@@ -345,6 +350,7 @@ Examples:
     parser.add_argument('-c','--check', help='Perform domain reputation checks', required=False, default=False, action='store_true', dest='check')
     parser.add_argument('-f','--filename', help='Specify input file of line delimited domain names to check', required=False, default=False, type=str, dest='filename')
     parser.add_argument('--ocr', help='Perform OCR on CAPTCHAs when challenged', required=False, default=False, action='store_true')
+    parser.add_argument('-o','--output', help='Output findings to CSV file, used with -f, writes', required=False, default=False, dest='outfile')
     parser.add_argument('-p','--proxy', help='Specify a HTTP/HTTPS proxy server to send requests through. Format: "http(s)://proxyhost:port"', required=False, default=False, dest='proxy')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains', required=False, default=100, type=int, dest='maxresults')
     parser.add_argument('-s','--single', help='Performs detailed reputation checks against a single domain name/IP.', required=False, default=False, dest='single')
@@ -400,6 +406,8 @@ Examples:
     maxwidth = args.maxwidth
     
     ocr = args.ocr
+
+    outfile = args.outfile
     
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
@@ -460,13 +468,32 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         data = []
         try:
             with open(filename, 'r') as domainsList:
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+                count = 0
+
                 for line in domainsList.read().splitlines():
                     data.append(checkDomain(line, proxies))
+                    if outfile: 
+                        csvfile = open(outfile, 'a')
+                        csvwriter = csv.writer(csvfile)
+                        if count == 0:
+                             csvwriter.writerow(header)
+                        csvwriter.writerow(data[-1])
+                        print("[+] Appending CSV data to {}\n".format(outfile))
+                        csvfile.close
+                        count = count + 1
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+
                 print(drawTable(header,data))
+
+                    
+                # if outfile:
+                #     with open(outfile, 'w') as csvfile:
+                #         print("\nWriting CSV data to {}\n".format(outfile))
+                #         csvwriter = csv.writer(csvfile)
+                #         csvwriter.writerows(data)                     
 
         except KeyboardInterrupt:
             print('Caught keyboard interrupt. Exiting!')
