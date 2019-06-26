@@ -261,7 +261,10 @@ def checkDomain(domain, proxies):
     print('[*] Fetching domain reputation for: {}'.format(domain))
 
     if domain in maldomainsList:
+        malwaredomain = True
         print("[!] {}: Identified as known malware domain (malwaredomains.com)".format(domain))
+    else:
+        malwaredomain = False
       
     bluecoat = checkBluecoat(domain, proxies)
     print("[+] {}: {}".format(domain, bluecoat))
@@ -277,7 +280,7 @@ def checkDomain(domain, proxies):
 
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox,malwaredomain]
     return results
 
 
@@ -468,7 +471,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         data = []
         try:
             with open(filename, 'r') as domainsList:
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox', 'IsMalwareDomain']
                 count = 0
 
                 for line in domainsList.read().splitlines():
