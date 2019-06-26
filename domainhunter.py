@@ -16,7 +16,7 @@ import json
 import base64
 import os
 
-__version__ = "20181005"
+__version__ = "20190626"
 
 ## Functions
 
@@ -33,7 +33,8 @@ def doSleep(timing):
         time.sleep(random.randrange(5,10))
     # There's no elif timing == 5 here because we don't want to sleep for -t 5
 
-def checkBluecoat(domain):
+
+def checkBluecoat(domain, proxies):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
         postData = {'url':domain,'captcha':''}
@@ -58,7 +59,7 @@ def checkBluecoat(domain):
                 #captcharequestURL = 'https://sitereview.bluecoat.com/resource/captcha-request'
 
                 print('[*] Received CAPTCHA challenge!')
-                captcha = solveCaptcha('https://sitereview.bluecoat.com/resource/captcha.jpg',s)
+                captcha = solveCaptcha('https://sitereview.bluecoat.com/resource/captcha.jpg',s,proxies)
                 
                 if captcha:
                     b64captcha = base64.urlsafe_b64encode(captcha.encode('utf-8')).decode('utf-8')
@@ -66,10 +67,16 @@ def checkBluecoat(domain):
                     # Send CAPTCHA solution via GET since inclusion with the domain categorization request doens't work anymore
                     captchasolutionURL = 'https://sitereview.bluecoat.com/resource/captcha-request/{0}'.format(b64captcha)
                     print('[*] Submiting CAPTCHA at {0}'.format(captchasolutionURL))
-                    response = s.get(url=captchasolutionURL,headers=headers,verify=False)
+                    if proxies:
+                        response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
+                    else:
+                        response = s.get(url=captchasolutionURL,headers=headers,verify=False)
 
                     # Try the categorization request again
-                    response = s.post(url,headers=headers,json=postData,verify=False)
+                    if proxies:
+                        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+                    else:
+                        response = s.post(url,headers=headers,json=postData,verify=False)
 
                     responseJSON = json.loads(response.text)
 
@@ -88,7 +95,8 @@ def checkBluecoat(domain):
         print('[-] Error retrieving Bluecoat reputation! {0}'.format(e))
         return "error"
 
-def checkIBMXForce(domain):
+
+def checkIBMXForce(domain, proxies):
     try: 
         url = 'https://exchange.xforce.ibmcloud.com/url/{}'.format(domain)
         headers = {'User-Agent':useragent,
@@ -100,7 +108,11 @@ def checkIBMXForce(domain):
         print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
-        response = s.get(url,headers=headers,verify=False)
+
+        if proxies:
+            response = s.get(url,headers=headers,verify=False,proxies=proxies)
+        else:
+            response = s.get(url,headers=headers,verify=False)
 
         responseJSON = json.loads(response.text)
 
@@ -126,14 +138,18 @@ def checkIBMXForce(domain):
         print('[-] Error retrieving IBM-Xforce reputation! {0}'.format(e))
         return "error"
 
-def checkTalos(domain):
+
+def checkTalos(domain, proxies):
     url = 'https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc'.format(domain)
     headers = {'User-Agent':useragent,
                'Referer':url}
 
     print('[*] Cisco Talos: {}'.format(domain))
     try:
-        response = s.get(url,headers=headers,verify=False)
+        if proxies:
+            response = s.get(url,headers=headers,verify=False,proxies=proxies)
+        else:
+            response = s.get(url,headers=headers,verify=False)
 
         responseJSON = json.loads(response.text)
 
@@ -154,7 +170,8 @@ def checkTalos(domain):
         print('[-] Error retrieving Talos reputation! {0}'.format(e))
         return "error"
 
-def checkMXToolbox(domain):
+
+def checkMXToolbox(domain, proxies):
     url = 'https://mxtoolbox.com/Public/Tools/BrandReputation.aspx'
     headers = {'User-Agent':useragent,
             'Origin':url,
@@ -163,7 +180,10 @@ def checkMXToolbox(domain):
     print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
     
     try:
-        response = s.get(url=url, headers=headers)
+        if proxies:
+            response = s.get(url=url,headers=headers,proxies=proxies)
+        else:
+            response = s.get(url=url,headers=headers)
         
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -193,7 +213,10 @@ def checkMXToolbox(domain):
         "ctl00$ucSignIn$txtModalPassword": ''
         }
           
-        response = s.post(url=url, headers=headers, data=data)
+        if proxies:
+            response = s.post(url=url,headers=headers,data=data,proxies=proxies)
+        else:
+            response = s.post(url=url,headers=headers,data=data)
 
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -213,31 +236,38 @@ def checkMXToolbox(domain):
         print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
         return "error"
 
-def downloadMalwareDomains(malwaredomainsURL):
+
+def downloadMalwareDomains(malwaredomainsURL, proxies):
     url = malwaredomainsURL
-    response = s.get(url=url,headers=headers,verify=False)
+    
+    if proxies:
+        response = s.get(url=url,headers=headers,verify=False,proxies=proxies)
+    else:
+        response = s.get(url=url,headers=headers,verify=False)
+
     responseText = response.text
     if response.status_code == 200:
         return responseText
     else:
         print("[-] Error reaching:{}  Status: {}").format(url, response.status_code)
 
-def checkDomain(domain):
+
+def checkDomain(domain, proxies):
     print('[*] Fetching domain reputation for: {}'.format(domain))
 
     if domain in maldomainsList:
         print("[!] {}: Identified as known malware domain (malwaredomains.com)".format(domain))
       
-    bluecoat = checkBluecoat(domain)
+    bluecoat = checkBluecoat(domain, proxies)
     print("[+] {}: {}".format(domain, bluecoat))
     
-    ibmxforce = checkIBMXForce(domain)
+    ibmxforce = checkIBMXForce(domain, proxies)
     print("[+] {}: {}".format(domain, ibmxforce))
 
-    ciscotalos = checkTalos(domain)
+    ciscotalos = checkTalos(domain, proxies)
     print("[+] {}: {}".format(domain, ciscotalos))
 
-    mxtoolbox = checkMXToolbox(domain)
+    mxtoolbox = checkMXToolbox(domain, proxies)
     print("[+] {}: {}".format(domain, mxtoolbox))
 
     print("")
@@ -245,14 +275,19 @@ def checkDomain(domain):
     results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
     return results
 
-def solveCaptcha(url,session):  
+
+def solveCaptcha(url, session, proxies):  
     # Downloads CAPTCHA image and saves to current directory for OCR with tesseract
     # Returns CAPTCHA string or False if error occured
     
     jpeg = 'captcha.jpg'
     
     try:
-        response = session.get(url=url,headers=headers,verify=False, stream=True)
+        if proxies:
+            response = session.get(url=url,headers=headers,verify=False,proxies=proxies,stream=True)
+        else:
+            response = session.get(url=url,headers=headers,verify=False,stream=True)
+
         if response.status_code == 200:
             with open(jpeg, 'wb') as f:
                 response.raw.decode_content = True
@@ -278,6 +313,7 @@ def solveCaptcha(url,session):
         
         return False
 
+
 def drawTable(header,data):
     
     data.insert(0,header)
@@ -286,6 +322,8 @@ def drawTable(header,data):
     t.header(header)
     
     return(t.draw())
+
+
 
 ## MAIN
 if __name__ == "__main__":
@@ -307,6 +345,7 @@ Examples:
     parser.add_argument('-c','--check', help='Perform domain reputation checks', required=False, default=False, action='store_true', dest='check')
     parser.add_argument('-f','--filename', help='Specify input file of line delimited domain names to check', required=False, default=False, type=str, dest='filename')
     parser.add_argument('--ocr', help='Perform OCR on CAPTCHAs when challenged', required=False, default=False, action='store_true')
+    parser.add_argument('-p','--proxy', help='Specify a HTTP/HTTPS proxy server to send requests through. Format: "http(s)://proxyhost:port"', required=False, default=False, dest='proxy')
     parser.add_argument('-r','--maxresults', help='Number of results to return when querying latest expired/deleted domains', required=False, default=100, type=int, dest='maxresults')
     parser.add_argument('-s','--single', help='Performs detailed reputation checks against a single domain name/IP.', required=False, default=False, dest='single')
     parser.add_argument('-t','--timing', help='Modifies request timing to avoid CAPTCHAs. Slowest(0) = 90-120 seconds, Default(3) = 10-20 seconds, Fastest(5) = no delay', required=False, default=3, type=int, choices=range(0,6), dest='timing')
@@ -351,6 +390,8 @@ Examples:
     filename = args.filename
     
     maxresults = args.maxresults
+
+    proxy = args.proxy
     
     single = args.single
 
@@ -375,6 +416,16 @@ Examples:
     # HTTP Session container, used to manage cookies, session tokens and other session information
     s = requests.Session()
 
+         
+    # Generic Proxy support 
+    if proxy:
+        proxies = {
+            'http': proxy,
+            'https': proxy,
+        }
+    else:
+        proxies = False
+
     title = '''
  ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____  
 |  _ \ / _ \|  \/  |  / \  |_ _| \ | | | | | | | | | \ | |_   _| ____|  _ \ 
@@ -395,12 +446,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
     # Download known malware domains
     print('[*] Downloading malware domain list from {}\n'.format(malwaredomainsURL))
-    maldomains = downloadMalwareDomains(malwaredomainsURL)
+    maldomains = downloadMalwareDomains(malwaredomainsURL, proxies)
     maldomainsList = maldomains.split("\n")
 
     # Retrieve reputation for a single choosen domain (Quick Mode)
     if single:
-        checkDomain(single)
+        checkDomain(single, proxies)
         exit(0)
 
     # Perform detailed domain reputation checks against input file, print table, and quit. This does not generate an HTML report
@@ -410,7 +461,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         try:
             with open(filename, 'r') as domainsList:
                 for line in domainsList.read().splitlines():
-                    data.append(checkDomain(line))
+                    data.append(checkDomain(line, proxies))
                     doSleep(timing)
 
                 # Print results table
@@ -424,19 +475,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             print('[-] Error: {}'.format(e))
             exit(1)
         exit(0)
-     
-    # Generic Proxy support 
-    # TODO: add as a parameter 
-    proxies = {
-      'http': 'http://127.0.0.1:8080',
-      'https': 'http://127.0.0.1:8080',
-    }
 
     # Create an initial session
-    domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
-    
-    # Use proxy like Burp for debugging request/parsing errors
-    #domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
+    if proxy:
+        domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
+    else:
+        domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
 
     # Lists for our ExpiredDomains results
     domain_list = []
@@ -484,8 +528,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         jar.set('_pk_ses.10.dd0a', '*', domain='expireddomains.net', path='/')
         jar.set('_pk_id.10.dd0a', pk_str, domain='expireddomains.net', path='/')
         
-        domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
-        #domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
+        if proxy: 
+            domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
+        else:
+            domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
 
         domains = domainrequest.text
    
@@ -619,11 +665,11 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             # Perform domain reputation checks
             if check:
                 
-                bluecoat = checkBluecoat(domain)
+                bluecoat = checkBluecoat(domain, proxies)
                 print("[+] {}: {}".format(domain, bluecoat))
-                ibmxforce = checkIBMXForce(domain)
+                ibmxforce = checkIBMXForce(domain, proxies)
                 print("[+] {}: {}".format(domain, ibmxforce))
-                ciscotalos = checkTalos(domain)
+                ciscotalos = checkTalos(domain, proxies)
                 print("[+] {}: {}".format(domain, ciscotalos))
                 print("")
                 # Sleep to avoid captchas
