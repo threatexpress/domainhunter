@@ -46,7 +46,7 @@ def checkBluecoat(domain):
                    'Referer':'https://sitereview.bluecoat.com/lookup'}
 
         print('[*] BlueCoat: {}'.format(domain))
-        response = s.post(url,headers=headers,json=postData,verify=False)
+        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
         
         if 'errorType' in responseJSON:
@@ -69,10 +69,10 @@ def checkBluecoat(domain):
                     # Send CAPTCHA solution via GET since inclusion with the domain categorization request doens't work anymore
                     captchasolutionURL = 'https://sitereview.bluecoat.com/resource/captcha-request/{0}'.format(b64captcha)
                     print('[*] Submiting CAPTCHA at {0}'.format(captchasolutionURL))
-                    response = s.get(url=captchasolutionURL,headers=headers,verify=False)
+                    response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                     # Try the categorization request again
-                    response = s.post(url,headers=headers,json=postData,verify=False)
+                    response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
 
                     responseJSON = json.loads(response.text)
 
@@ -103,7 +103,7 @@ def checkIBMXForce(domain):
         print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
-        response = s.get(url,headers=headers,verify=False)
+        response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
         responseJSON = json.loads(response.text)
 
@@ -136,7 +136,7 @@ def checkTalos(domain):
 
     print('[*] Cisco Talos: {}'.format(domain))
     try:
-        response = s.get(url,headers=headers,verify=False)
+        response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
         responseJSON = json.loads(response.text)
 
@@ -166,7 +166,7 @@ def checkMXToolbox(domain):
     print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
     
     try:
-        response = s.get(url=url, headers=headers)
+        response = s.get(url=url, headers=headers,proxies=proxies)
         
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -196,7 +196,7 @@ def checkMXToolbox(domain):
         "ctl00$ucSignIn$txtModalPassword": ''
         }
           
-        response = s.post(url=url, headers=headers, data=data)
+        response = s.post(url=url, headers=headers, data=data,proxies=proxies)
 
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -218,7 +218,7 @@ def checkMXToolbox(domain):
 
 def downloadMalwareDomains(malwaredomainsURL):
     url = malwaredomainsURL
-    response = s.get(url=url,headers=headers,verify=False)
+    response = s.get(url=url,headers=headers,verify=False,proxies=proxies)
     responseText = response.text
     if response.status_code == 200:
         return responseText
@@ -255,7 +255,7 @@ def solveCaptcha(url,session):
     jpeg = 'captcha.jpg'
     
     try:
-        response = session.get(url=url,headers=headers,verify=False, stream=True)
+        response = session.get(url=url,headers=headers,verify=False, stream=True,proxies=proxies)
         if response.status_code == 200:
             with open(jpeg, 'wb') as f:
                 response.raw.decode_content = True
