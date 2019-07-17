@@ -341,6 +341,9 @@ Examples:
     parser.add_argument("-P", "--proxy", required=False, default=None, help="proxy. ex https://127.0.0.1:8080")
     parser.add_argument("-u", "--username", required=False, default=None, type=str, help="username for expireddomains.net")
     parser.add_argument("-p", "--password", required=False, default=None, type=str, help="password for expireddomains.net")
+    parser.add_argument("-o", "--output", required=False, default=None, type=str, help="output file path")
+    parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
+    parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
     args = parser.parse_args()
 
     # Load dependent modules
@@ -368,7 +371,7 @@ Examples:
             print("[*] Ubuntu\Debian - Install tesseract by running: apt-get install tesseract-ocr python3-imaging")
             print("[*] macOS - Install tesseract with homebrew by running: brew install tesseract")
             quit(0)
-
+    
 ## Variables
     username = args.username
 
@@ -393,7 +396,13 @@ Examples:
     maxwidth = args.maxwidth
     
     ocr = args.ocr
-    
+
+    output = args.output
+
+    keyword_start = args.keyword_start
+
+    keyword_end = args.keyword_end
+
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
     expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
@@ -436,7 +445,7 @@ The authors or employers are not liable for any illegal act or misuse performed 
 If you plan to use this content for illegal purpose, don't.  Have a nice day :)'''
     print(disclaimer)
     print("")
-    
+
     # Download known malware domains
     print('[*] Downloading malware domain list from {}\n'.format(malwaredomainsURL))
     maldomains = downloadMalwareDomains(malwaredomainsURL)
@@ -479,12 +488,17 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # Use the keyword string to narrow domain search if provided. This generates a list of URLs to query
     loginExpiredDomains()
     
-    for i in range (0,(maxresults),25):
+    m = 200
+    if maxresults < m:
+        m = maxresults
+
+    for i in range (0,(maxresults),m):
         k=""
         if keyword:
             k=keyword
-        urls.append('{}/domains/combinedexpired/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&flimit=200&fdomain={}&fdomainstart=&fdomainend=&falexa={}'.format(expireddomainHost,i,k,alexa))
+        urls.append('{}/domains/combinedexpired/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&flimit={}&fdomain={}&fdomainstart={}&fdomainend={}&falexa={}'.format(expireddomainHost,i,m,k,keyword_start,keyword_end,alexa))
 
+    max_reached = False
     for url in urls:
 
         print("[*]  {}".format(url))
@@ -497,12 +511,17 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         try:
             table = soup.find_all("table", class_="base1")
             tbody = table[0].select("tbody tr")
+            
 
             for row in tbody:
                 # Alternative way to extract domain name
                 # domain = row.find('td').find('a').text
 
                 cells = row.findAll("td")
+                
+                if len(cells) == 1:
+                    max_reached = True
+                    break # exit if max rows reached
 
                 if len(cells) >= 1:
                     c0 = getIndex(cells, 0).lower()   # domain
@@ -543,7 +562,8 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
                     if keyword:
                         # Only add Expired, not Pending, Backorder, etc
-                        if c13 == "Expired": # I'm not sure about this, seems like "expired" isn't an option anymore.  expireddomains.net might not support this any more.
+                        # "expired" isn't returned any more, I changed it to "available"
+                        if c14 == "available": # I'm not sure about this, seems like "expired" isn't an option anymore.  expireddomains.net might not support this any more.
                             # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
                             if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
                                 domain_list.append([c0,c3,c4,available,status])
@@ -553,6 +573,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                         # Append original parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
                         if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
                             domain_list.append([c0,c3,c4,available,status]) 
+            if max_reached:
+                print("[*] All records returned")
+                break
 
         except Exception as e: 
             print("[!] Error: ", e)
@@ -656,6 +679,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     html = htmlHeader + htmlBody + htmlTableHeader + htmlTableBody + htmlTableFooter + htmlFooter
 
     logfilename = "{}_domainreport.html".format(timestamp)
+    if output != None:
+        logfilename = output
+
     log = open(logfilename,'w')
     log.write(html)
     log.close
