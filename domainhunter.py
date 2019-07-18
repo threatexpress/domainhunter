@@ -18,6 +18,7 @@ import os
 import sys
 import urlparse
 import getpass
+import uuid
 
 __version__ = "20190716"
 
@@ -40,13 +41,24 @@ def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
         postData = {'url':domain,'captcha':''}
+
+        token = str(uuid.uuid4())
+
         headers = {'User-Agent':useragent,
                    'Accept':'application/json, text/plain, */*',
+                   'Accept-Language':'en_US',
                    'Content-Type':'application/json; charset=UTF-8',
-                   'Referer':'https://sitereview.bluecoat.com/lookup'}
+                   'X-XSRF-TOKEN':token,
+                   'Referer':'http://sitereview.bluecoat.com/'}
+
+        c = {
+            "JSESSIONID":str(uuid.uuid4()).upper().replace("-", ""),
+            "XSRF-TOKEN":token
+        }
 
         print('[*] BlueCoat: {}'.format(domain))
-        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+        
+        response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
         
         if 'errorType' in responseJSON:
@@ -166,7 +178,7 @@ def checkMXToolbox(domain):
     print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
     
     try:
-        response = s.get(url=url, headers=headers,proxies=proxies)
+        response = s.get(url=url, headers=headers,proxies=proxies,verify=False)
         
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -196,7 +208,7 @@ def checkMXToolbox(domain):
         "ctl00$ucSignIn$txtModalPassword": ''
         }
           
-        response = s.post(url=url, headers=headers, data=data,proxies=proxies)
+        response = s.post(url=url, headers=headers, data=data,proxies=proxies,verify=False)
 
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -421,12 +433,10 @@ Examples:
     # HTTP Session container, used to manage cookies, session tokens and other session information
     s = requests.Session()
 
-    if args.password == None or args.password == "":
-        password = getpass.getpass("Password: ")
-
     if(args.proxy != None):
         proxy_parts = urlparse.urlparse(args.proxy)
-        proxies[proxy_parts.scheme] = "%s://%s" % (proxy_parts.scheme, proxy_parts.netloc)
+        proxies["http"] = "http://%s" % (proxy_parts.netloc)
+        proxies["https"] = "https://%s" % (proxy_parts.netloc)
 
     title = '''
  ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____  
@@ -485,7 +495,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # Generate list of URLs to query for expired/deleted domains
     urls = []
     
-    # Use the keyword string to narrow domain search if provided. This generates a list of URLs to query
+    if args.password == None or args.password == "":
+        password = getpass.getpass("Password: ")
+
     loginExpiredDomains()
     
     m = 200
