@@ -56,7 +56,7 @@ def checkBluecoat(domain):
             "XSRF-TOKEN":token
         }
 
-        print('[*] BlueCoat: {}'.format(domain))
+        # print('[*] BlueCoat: {}'.format(domain))
         
         response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
@@ -112,7 +112,7 @@ def checkIBMXForce(domain):
                     'Origin':url,
                     'Referer':url}
 
-        print('[*] IBM xForce: {}'.format(domain))
+        # print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
         response = s.get(url,headers=headers,verify=False,proxies=proxies)
@@ -146,7 +146,7 @@ def checkTalos(domain):
     headers = {'User-Agent':useragent,
                'Referer':url}
 
-    print('[*] Cisco Talos: {}'.format(domain))
+    # print('[*] Cisco Talos: {}'.format(domain))
     try:
         response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
@@ -607,6 +607,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # Print number of domains to perform reputation checks against
         if check:
             print("\n[*] Performing reputation checks for {} domains".format(len(domain_list_unique)))
+	    print("")
 
         for domain_entry in domain_list_unique:
             domain = domain_entry[0]
@@ -621,12 +622,17 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             # Perform domain reputation checks
             if check:
                 
+		unwantedResults = ['Uncategorized','error','Not found.','Spam','Spam URLs','Pornography','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders']
+		
                 bluecoat = checkBluecoat(domain)
-                print("[+] {}: {}".format(domain, bluecoat))
+		if bluecoat not in unwantedResults:
+                    print("[+] Bluecoat - {}: {}".format(domain, bluecoat))
                 ibmxforce = checkIBMXForce(domain)
-                print("[+] {}: {}".format(domain, ibmxforce))
+		if ibmxforce not in unwantedResults:
+                    print("[+] IBM XForce - {}: {}".format(domain, ibmxforce))
                 ciscotalos = checkTalos(domain)
-                print("[+] {}: {}".format(domain, ciscotalos))
+		if ciscotalos not in unwantedResults:
+                    print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
