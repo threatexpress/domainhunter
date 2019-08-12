@@ -16,7 +16,7 @@ import json
 import base64
 import os
 import sys
-import urlparse
+from urllib.parse import urlparse
 import getpass
 import uuid
 
@@ -434,7 +434,7 @@ Examples:
     s = requests.Session()
 
     if(args.proxy != None):
-        proxy_parts = urlparse.urlparse(args.proxy)
+        proxy_parts = urlparse(args.proxy)
         proxies["http"] = "http://%s" % (proxy_parts.netloc)
         proxies["https"] = "https://%s" % (proxy_parts.netloc)
 
@@ -607,7 +607,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # Print number of domains to perform reputation checks against
         if check:
             print("\n[*] Performing reputation checks for {} domains".format(len(domain_list_unique)))
-	    print("")
+            print("")
 
         for domain_entry in domain_list_unique:
             domain = domain_entry[0]
@@ -621,18 +621,20 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
             # Perform domain reputation checks
             if check:
+                unwantedResults = ['Uncategorized','error','Not found.','Spam','Spam URLs','Pornography','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders']
                 
-		unwantedResults = ['Uncategorized','error','Not found.','Spam','Spam URLs','Pornography','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders']
-		
                 bluecoat = checkBluecoat(domain)
-		if bluecoat not in unwantedResults:
+                if bluecoat not in unwantedResults:
                     print("[+] Bluecoat - {}: {}".format(domain, bluecoat))
+                
                 ibmxforce = checkIBMXForce(domain)
-		if ibmxforce not in unwantedResults:
+                if ibmxforce not in unwantedResults:
                     print("[+] IBM XForce - {}: {}".format(domain, ibmxforce))
+                
                 ciscotalos = checkTalos(domain)
-		if ciscotalos not in unwantedResults:
+                if ciscotalos not in unwantedResults:
                     print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
