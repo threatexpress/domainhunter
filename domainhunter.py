@@ -508,12 +508,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         k=""
         if keyword:
             k=keyword
-        urls.append('{}/domains/combinedexpired/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&flimit={}&fdomain={}&fdomainstart={}&fdomainend={}&falexa={}'.format(expireddomainHost,i,m,k,keyword_start,keyword_end,alexa))
+        urls.append('{}/domains/combinedexpired/?fwhois=22&fadult=1&start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&flimit={}&fdomain={}&fdomainstart={}&fdomainend={}&falexa={}'.format(expireddomainHost,i,m,k,keyword_start,keyword_end,alexa))
 
     max_reached = False
     for url in urls:
 
-        print("[*]  {}".format(url))
+        print("[*] {}".format(url))
         domainrequest = s.get(url,headers=headers,verify=False,proxies=proxies)
         domains = domainrequest.text
    
