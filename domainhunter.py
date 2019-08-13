@@ -56,7 +56,7 @@ def checkBluecoat(domain):
             "XSRF-TOKEN":token
         }
 
-        # print('[*] BlueCoat: {}'.format(domain))
+        print('[*] BlueCoat: {}'.format(domain))
         
         response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
@@ -112,7 +112,7 @@ def checkIBMXForce(domain):
                     'Origin':url,
                     'Referer':url}
 
-        # print('[*] IBM xForce: {}'.format(domain))
+        print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
         response = s.get(url,headers=headers,verify=False,proxies=proxies)
@@ -146,7 +146,7 @@ def checkTalos(domain):
     headers = {'User-Agent':useragent,
                'Referer':url}
 
-    # print('[*] Cisco Talos: {}'.format(domain))
+    print('[*] Cisco Talos: {}'.format(domain))
     try:
         response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
