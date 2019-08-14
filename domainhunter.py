@@ -15,8 +15,12 @@ import argparse
 import json
 import base64
 import os
+import sys
+from urllib.parse import urlparse
+import getpass
+import uuid
 
-__version__ = "20181005"
+__version__ = "20190716"
 
 ## Functions
 
@@ -37,13 +41,24 @@ def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
         postData = {'url':domain,'captcha':''}
+
+        token = str(uuid.uuid4())
+
         headers = {'User-Agent':useragent,
                    'Accept':'application/json, text/plain, */*',
+                   'Accept-Language':'en_US',
                    'Content-Type':'application/json; charset=UTF-8',
-                   'Referer':'https://sitereview.bluecoat.com/lookup'}
+                   'X-XSRF-TOKEN':token,
+                   'Referer':'http://sitereview.bluecoat.com/'}
+
+        c = {
+            "JSESSIONID":str(uuid.uuid4()).upper().replace("-", ""),
+            "XSRF-TOKEN":token
+        }
 
         print('[*] BlueCoat: {}'.format(domain))
-        response = s.post(url,headers=headers,json=postData,verify=False)
+        
+        response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
         
         if 'errorType' in responseJSON:
@@ -66,10 +81,10 @@ def checkBluecoat(domain):
                     # Send CAPTCHA solution via GET since inclusion with the domain categorization request doens't work anymore
                     captchasolutionURL = 'https://sitereview.bluecoat.com/resource/captcha-request/{0}'.format(b64captcha)
                     print('[*] Submiting CAPTCHA at {0}'.format(captchasolutionURL))
-                    response = s.get(url=captchasolutionURL,headers=headers,verify=False)
+                    response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                     # Try the categorization request again
-                    response = s.post(url,headers=headers,json=postData,verify=False)
+                    response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
 
                     responseJSON = json.loads(response.text)
 
@@ -100,7 +115,7 @@ def checkIBMXForce(domain):
         print('[*] IBM xForce: {}'.format(domain))
 
         url = 'https://api.xforce.ibmcloud.com/url/{}'.format(domain)
-        response = s.get(url,headers=headers,verify=False)
+        response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
         responseJSON = json.loads(response.text)
 
@@ -133,7 +148,7 @@ def checkTalos(domain):
 
     print('[*] Cisco Talos: {}'.format(domain))
     try:
-        response = s.get(url,headers=headers,verify=False)
+        response = s.get(url,headers=headers,verify=False,proxies=proxies)
 
         responseJSON = json.loads(response.text)
 
@@ -163,7 +178,7 @@ def checkMXToolbox(domain):
     print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
     
     try:
-        response = s.get(url=url, headers=headers)
+        response = s.get(url=url, headers=headers,proxies=proxies,verify=False)
         
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -193,7 +208,7 @@ def checkMXToolbox(domain):
         "ctl00$ucSignIn$txtModalPassword": ''
         }
           
-        response = s.post(url=url, headers=headers, data=data)
+        response = s.post(url=url, headers=headers, data=data,proxies=proxies,verify=False)
 
         soup = BeautifulSoup(response.content,'lxml')
 
@@ -215,7 +230,7 @@ def checkMXToolbox(domain):
 
 def downloadMalwareDomains(malwaredomainsURL):
     url = malwaredomainsURL
-    response = s.get(url=url,headers=headers,verify=False)
+    response = s.get(url=url,headers=headers,verify=False,proxies=proxies)
     responseText = response.text
     if response.status_code == 200:
         return responseText
@@ -252,7 +267,7 @@ def solveCaptcha(url,session):
     jpeg = 'captcha.jpg'
     
     try:
-        response = session.get(url=url,headers=headers,verify=False, stream=True)
+        response = session.get(url=url,headers=headers,verify=False, stream=True,proxies=proxies)
         if response.status_code == 200:
             with open(jpeg, 'wb') as f:
                 response.raw.decode_content = True
@@ -287,6 +302,29 @@ def drawTable(header,data):
     
     return(t.draw())
 
+def loginExpiredDomains():    
+    data = "login=%s&password=%s&redirect_2_url=/" % (username, password)
+    headers["Content-Type"] = "application/x-www-form-urlencoded"
+    r = s.post(expireddomainHost + "/login/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=False)
+    cookies = s.cookies.get_dict()
+
+    if "location" in r.headers:
+        if "/login/" in r.headers["location"]:
+            print("[!] Login failed")
+            sys.exit()
+
+    if "ExpiredDomainssessid" in cookies:
+        print("[+] Login successful.  ExpiredDomainssessid: %s" % (cookies["ExpiredDomainssessid"]))
+    else:
+        print("[!] Login failed")
+        sys.exit()
+
+def getIndex(cells, index):
+        if cells[index].find("a") == None:
+            return cells[index].text.strip()
+        
+        return cells[index].find("a").text.strip()
+
 ## MAIN
 if __name__ == "__main__":
 
@@ -312,6 +350,12 @@ Examples:
     parser.add_argument('-t','--timing', help='Modifies request timing to avoid CAPTCHAs. Slowest(0) = 90-120 seconds, Default(3) = 10-20 seconds, Fastest(5) = no delay', required=False, default=3, type=int, choices=range(0,6), dest='timing')
     parser.add_argument('-w','--maxwidth', help='Width of text table', required=False, default=400, type=int, dest='maxwidth')
     parser.add_argument('-V','--version', action='version',version='%(prog)s {version}'.format(version=__version__))
+    parser.add_argument("-P", "--proxy", required=False, default=None, help="proxy. ex https://127.0.0.1:8080")
+    parser.add_argument("-u", "--username", required=False, default=None, type=str, help="username for expireddomains.net")
+    parser.add_argument("-p", "--password", required=False, default=None, type=str, help="password for expireddomains.net")
+    parser.add_argument("-o", "--output", required=False, default=None, type=str, help="output file path")
+    parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
+    parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
     args = parser.parse_args()
 
     # Load dependent modules
@@ -339,13 +383,18 @@ Examples:
             print("[*] Ubuntu\Debian - Install tesseract by running: apt-get install tesseract-ocr python3-imaging")
             print("[*] macOS - Install tesseract with homebrew by running: brew install tesseract")
             quit(0)
-
+    
 ## Variables
+    username = args.username
+
+    password = args.password
+
+    proxy = args.proxy
 
     alexa = args.alexa
 
     keyword = args.keyword
-
+    
     check = args.check
 
     filename = args.filename
@@ -359,10 +408,17 @@ Examples:
     maxwidth = args.maxwidth
     
     ocr = args.ocr
-    
+
+    output = args.output
+
+    keyword_start = args.keyword_start
+
+    keyword_end = args.keyword_end
+
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
-    expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'  
+    expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
+    expireddomainHost = "https://member.expireddomains.net"
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
             
@@ -370,10 +426,17 @@ Examples:
    
     headers = {'User-Agent':useragent}
 
+    proxies = {}
+
     requests.packages.urllib3.disable_warnings()
  
     # HTTP Session container, used to manage cookies, session tokens and other session information
     s = requests.Session()
+
+    if(args.proxy != None):
+        proxy_parts = urlparse(args.proxy)
+        proxies["http"] = "http://%s" % (proxy_parts.netloc)
+        proxies["https"] = "https://%s" % (proxy_parts.netloc)
 
     title = '''
  ____   ___  __  __    _    ___ _   _   _   _ _   _ _   _ _____ _____ ____  
@@ -424,19 +487,6 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             print('[-] Error: {}'.format(e))
             exit(1)
         exit(0)
-     
-    # Generic Proxy support 
-    # TODO: add as a parameter 
-    proxies = {
-      'http': 'http://127.0.0.1:8080',
-      'https': 'http://127.0.0.1:8080',
-    }
-
-    # Create an initial session
-    domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False)
-    
-    # Use proxy like Burp for debugging request/parsing errors
-    #domainrequest = s.get("https://www.expireddomains.net",headers=headers,verify=False,proxies=proxies)
 
     # Lists for our ExpiredDomains results
     domain_list = []
@@ -445,148 +495,100 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     # Generate list of URLs to query for expired/deleted domains
     urls = []
     
-    # Use the keyword string to narrow domain search if provided. This generates a list of URLs to query
+    if args.password == None or args.password == "":
+        password = getpass.getpass("Password: ")
 
-    if keyword:
-        print('[*] Fetching expired or deleted domains containing "{}"'.format(keyword))
-        for i in range (0,maxresults,25):
-            if i == 0:
-                urls.append("{}/?q={}&fwhois=22&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}".format(expireddomainsqueryURL,keyword,alexa))
-                headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?q={}&start=1'.format(keyword)
-            else:
-                urls.append("{}/?start={}&q={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&fwhois=22&falexa={}".format(expireddomainsqueryURL,i,keyword,alexa))
-                headers['Referer'] ='https://www.expireddomains.net/domain-name-search/?start={}&q={}'.format((i-25),keyword)
+    loginExpiredDomains()
     
-    # If no keyword provided, generate list of recently expired domains URLS (batches of 25 results).
-    else:
-        print('[*] Fetching expired or deleted domains...')
-        # Caculate number of URLs to request since we're performing a request for two different resources instead of one
-        numresults = int(maxresults / 2)
-        for i in range (0,(numresults),25):
-            urls.append('https://www.expireddomains.net/backorder-expired-domains?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}'.format(i,alexa))
-            urls.append('https://www.expireddomains.net/deleted-com-domains/?start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&falexa={}'.format(i,alexa))
- 
+    m = 200
+    if maxresults < m:
+        m = maxresults
+
+    for i in range (0,(maxresults),m):
+        k=""
+        if keyword:
+            k=keyword
+        urls.append('{}/domains/combinedexpired/?fwhois=22&fadult=1&start={}&ftlds[]=2&ftlds[]=3&ftlds[]=4&flimit={}&fdomain={}&fdomainstart={}&fdomainend={}&falexa={}'.format(expireddomainHost,i,m,k,keyword_start,keyword_end,alexa))
+
+    max_reached = False
     for url in urls:
 
-        print("[*]  {}".format(url))
-
-        # Annoyingly when querying specific keywords the expireddomains.net site requires additional cookies which 
-        #  are set in JavaScript and not recognized by Requests so we add them here manually.
-        # May not be needed, but the _pk_id.10.dd0a cookie only requires a single . to be successful
-        # In order to somewhat match a real cookie, but still be different, random integers are introduced
-
-        r1 = random.randint(100000,999999)
-
-        # Known good example _pk_id.10.dd0a cookie: 5abbbc772cbacfb1.1496760705.2.1496760705.1496760705
-        pk_str = '5abbbc772cbacfb1' + '.1496' + str(r1) + '.2.1496' + str(r1) + '.1496' + str(r1)
-
-        jar = requests.cookies.RequestsCookieJar()
-        jar.set('_pk_ses.10.dd0a', '*', domain='expireddomains.net', path='/')
-        jar.set('_pk_id.10.dd0a', pk_str, domain='expireddomains.net', path='/')
-        
-        domainrequest = s.get(url,headers=headers,verify=False,cookies=jar)
-        #domainrequest = s.get(url,headers=headers,verify=False,cookies=jar,proxies=proxies)
-
+        print("[*] {}".format(url))
+        domainrequest = s.get(url,headers=headers,verify=False,proxies=proxies)
         domains = domainrequest.text
    
         # Turn the HTML into a Beautiful Soup object
-        soup = BeautifulSoup(domains, 'lxml')    
-        #print(soup)
+        soup = BeautifulSoup(domains, 'html.parser')
+
         try:
-            table = soup.find("table")
+            table = soup.find_all("table", class_="base1")
+            tbody = table[0].select("tbody tr")
+            
 
-            rows = table.findAll('tr')[1:]
-            for row in table.findAll('tr')[1:]:
-
+            for row in tbody:
                 # Alternative way to extract domain name
                 # domain = row.find('td').find('a').text
 
                 cells = row.findAll("td")
+                
+                if len(cells) == 1:
+                    max_reached = True
+                    break # exit if max rows reached
 
                 if len(cells) >= 1:
+                    c0 = getIndex(cells, 0).lower()   # domain
+                    c1 = getIndex(cells, 3)   # bl
+                    c2 = getIndex(cells, 4)   # domainpop
+                    c3 = getIndex(cells, 5)   # birth
+                    c4 = getIndex(cells, 7)   # Archive.org entries
+                    c5 = getIndex(cells, 8)   # Alexa
+                    c6 = getIndex(cells, 10)  # Dmoz.org
+                    c7 = getIndex(cells, 12)  # status com
+                    c8 = getIndex(cells, 13)  # status net
+                    c9 = getIndex(cells, 14)  # status org
+                    c10 = getIndex(cells, 17)  # status de
+                    c11 = getIndex(cells, 11)  # TLDs
+                    c12 = getIndex(cells, 19)  # RDT
+                    c13 = ""                    # List
+                    c14 = getIndex(cells, 22)  # Status
+                    c15 = ""                    # links
+
+                    # create available TLD list
+                    available = ''
+                    if c7 == "available":
+                        available += ".com "
+
+                    if c8 == "available":
+                        available += ".net "
+
+                    if c9 == "available":
+                        available += ".org "
+
+                    if c10 == "available":
+                        available += ".de "
+                    
+                    # Only grab status for keyword searches since it doesn't exist otherwise
+                    status = ""
                     if keyword:
+                        status = c14
 
-                        c0 = row.find('td').find('a').text   # domain
-                        c1 = cells[1].find(text=True)   # bl
-                        c2 = cells[2].find(text=True)   # domainpop
-                        c3 = cells[3].find(text=True)   # birth
-                        c4 = cells[4].find(text=True)   # Archive.org entries
-                        c5 = cells[5].find(text=True)   # Alexa
-                        c6 = cells[6].find(text=True)   # Dmoz.org
-                        c7 = cells[7].find(text=True)   # status com
-                        c8 = cells[8].find(text=True)   # status net
-                        c9 = cells[9].find(text=True)   # status org
-                        c10 = cells[10].find(text=True) # status de
-                        c11 = cells[11].find(text=True) # TLDs
-                        c12 = cells[12].find(text=True) # RDT
-                        c13 = cells[13].find(text=True) # List
-                        c14 = cells[14].find(text=True) # Status
-                        c15 = ""                        # Links 
-
-                        # create available TLD list
-                        available = ''
-                        if c7 == "available":
-                            available += ".com "
-
-                        if c8 == "available":
-                            available += ".net "
-
-                        if c9 == "available":
-                            available += ".org "
-
-                        if c10 == "available":
-                            available += ".de "
-                        
-                        # Only grab status for keyword searches since it doesn't exist otherwise
-                        status = ""
-                        if keyword:
-                            status = c14
-                        
+                    if keyword:
                         # Only add Expired, not Pending, Backorder, etc
-                        if c13 == "Expired":
+                        # "expired" isn't returned any more, I changed it to "available"
+                        if c14 == "available": # I'm not sure about this, seems like "expired" isn't an option anymore.  expireddomains.net might not support this any more.
                             # Append parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
                             if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
-                                domain_list.append([c0,c3,c4,available,status]) 
-
+                                domain_list.append([c0,c3,c4,available,status])
+                        
                     # Non-keyword search table format is slightly different
                     else:
-                    
-                        c0 = cells[0].find(text=True)   # domain
-                        c1 = cells[1].find(text=True)   # bl
-                        c2 = cells[2].find(text=True)   # domainpop
-                        c3 = cells[3].find(text=True)   # birth
-                        c4 = cells[4].find(text=True)   # Archive.org entries
-                        c5 = cells[5].find(text=True)   # Alexa
-                        c6 = cells[6].find(text=True)   # Dmoz.org
-                        c7 = cells[7].find(text=True)   # status com
-                        c8 = cells[8].find(text=True)   # status net
-                        c9 = cells[9].find(text=True)   # status org
-                        c10 = cells[10].find(text=True) # status de
-                        c11 = cells[11].find(text=True) # TLDs
-                        c12 = cells[12].find(text=True) # RDT
-                        c13 = cells[13].find(text=True) # End Date
-                        c14 = cells[14].find(text=True) # Links
-                        
-                        # create available TLD list
-                        available = ''
-                        if c7 == "available":
-                            available += ".com "
-
-                        if c8 == "available":
-                            available += ".net "
-
-                        if c9 == "available":
-                            available += ".org "
-
-                        if c10 == "available":
-                            available += ".de "
-
-                        status = ""
-
                         # Append original parsed domain data to list if it matches our criteria (.com|.net|.org and not a known malware domain)
                         if (c0.lower().endswith(".com") or c0.lower().endswith(".net") or c0.lower().endswith(".org")) and (c0 not in maldomainsList):
                             domain_list.append([c0,c3,c4,available,status]) 
-                        
+            if max_reached:
+                print("[*] All records returned")
+                break
+
         except Exception as e: 
             print("[!] Error: ", e)
             pass
@@ -605,6 +607,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         # Print number of domains to perform reputation checks against
         if check:
             print("\n[*] Performing reputation checks for {} domains".format(len(domain_list_unique)))
+            print("")
 
         for domain_entry in domain_list_unique:
             domain = domain_entry[0]
@@ -618,13 +621,20 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
             # Perform domain reputation checks
             if check:
+                unwantedResults = ['Uncategorized','error','Not found.','Spam','Spam URLs','Pornography','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders']
                 
                 bluecoat = checkBluecoat(domain)
-                print("[+] {}: {}".format(domain, bluecoat))
+                if bluecoat not in unwantedResults:
+                    print("[+] Bluecoat - {}: {}".format(domain, bluecoat))
+                
                 ibmxforce = checkIBMXForce(domain)
-                print("[+] {}: {}".format(domain, ibmxforce))
+                if ibmxforce not in unwantedResults:
+                    print("[+] IBM XForce - {}: {}".format(domain, ibmxforce))
+                
                 ciscotalos = checkTalos(domain)
-                print("[+] {}: {}".format(domain, ciscotalos))
+                if ciscotalos not in unwantedResults:
+                    print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
@@ -689,6 +699,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     html = htmlHeader + htmlBody + htmlTableHeader + htmlTableBody + htmlTableFooter + htmlFooter
 
     logfilename = "{}_domainreport.html".format(timestamp)
+    if output != None:
+        logfilename = output
+
     log = open(logfilename,'w')
     log.write(html)
     log.close

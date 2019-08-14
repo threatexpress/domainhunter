@@ -4,3 +4,5 @@ beautifulsoup4==4.5.3
 lxml
 pillow==5.0.0
 pytesseract
+urllib3
+uuid
