@@ -382,10 +382,7 @@ Examples:
     parser.add_argument("-o", "--output", required=False, default=None, type=str, help="output file path")
     parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
     parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
-<<<<<<< HEAD
     parser.add_argument('-um','--umbrella-apikey', help='API Key for umbrella (paid)', required=False, default="", type=str, dest='umbrella_apikey')
-=======
->>>>>>> upstream/master
     args = parser.parse_args()
 
     # Load dependent modules
@@ -445,11 +442,8 @@ Examples:
 
     keyword_end = args.keyword_end
 
-<<<<<<< HEAD
     umbrella_apikey = args.umbrella_apikey
 
-=======
->>>>>>> upstream/master
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
     expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
