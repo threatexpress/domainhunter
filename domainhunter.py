@@ -51,8 +51,11 @@ def checkUmbrella(domain):
         print('[*] Umbrella: {}'.format(domain))
         
         response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
-        responseJSON = json.loads(response.text)   
-        return responseJSON[domain]['content_categories'][0]
+        responseJSON = json.loads(response.text)
+        if len(responseJSON[domain]['content_categories']) > 0:
+            return responseJSON[domain]['content_categories'][0]
+        else:
+            return 'Uncategorized'
 
     except Exception as e:
         print('[-] Error retrieving Umbrella reputation! {0}'.format(e))
@@ -647,6 +650,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             bluecoat = '-'
             ibmxforce = '-'
             ciscotalos = '-'
+            umbrella = '-'
 
             # Perform domain reputation checks
             if check:
@@ -664,6 +668,11 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                 if ciscotalos not in unwantedResults:
                     print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
 
+                if len(umbrella_apikey):
+                    umbrella = checkUmbrella(domain)
+                    if umbrella not in unwantedResults:
+                        print("[+] Umbrella {}: {}".format(domain, umbrella))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
@@ -672,7 +681,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
                 and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error'))):
                 
-                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -720,6 +729,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">{}</a></td>'.format(i[5]) # Bluecoat
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
         htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
+        htmlTableBody += '<td>{}</td>'.format(i[8]) # Cisco Umbrella
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
