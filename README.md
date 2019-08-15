@@ -1,8 +1,5 @@
 # Domain Hunter
 
-*NOTE: This tool cannot currently pull newly expired domains due to a recent change in ExpiredDomains.net that requires authentication. However, automated domain reputation checks for a single domain or from a file of names are still functional. *
-
-
 Authors Joe Vest (@joevest) & Andrew Chiles (@andrewchiles)
 
 Domain name selection is an important aspect of preparation for penetration tests and especially Red Team engagements. Commonly, domains that were used previously for benign purposes and were properly categorized can be purchased for only a few dollars. Such domains can allow a team to bypass reputation based web filters and network egress restrictions for phishing and C2 related tasks. 
@@ -11,6 +8,9 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 13 August 2019
+   + Added authentication support for ExpiredDomains.net thanks to acole76!
+   
 - 5 October 2018
    + Fixed logic for filtering domains with desirable categorizations. Previously, some error conditions weren't filtered and would result in domains without a valid categorization making it into the final list.
 
