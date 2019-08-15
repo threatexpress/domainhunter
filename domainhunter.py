@@ -37,6 +37,28 @@ def doSleep(timing):
         time.sleep(random.randrange(5,10))
     # There's no elif timing == 5 here because we don't want to sleep for -t 5
 
+def checkUmbrella(domain):
+    try:
+        url = 'https://investigate.api.umbrella.com/domains/categorization/?showLabels'
+        postData = [domain]
+
+        headers = {
+            'User-Agent':useragent,
+            'Content-Type':'application/json; charset=UTF-8',
+            'Authorization': 'Bearer {}'.format(umbrella_apikey)
+        }
+
+        print('[*] Umbrella: {}'.format(domain))
+        
+        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+        responseJSON = json.loads(response.text)   
+        return responseJSON[domain]['content_categories'][0]
+
+    except Exception as e:
+        print('[-] Error retrieving Umbrella reputation! {0}'.format(e))
+        return "error"
+
+
 def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
@@ -255,6 +277,10 @@ def checkDomain(domain):
     mxtoolbox = checkMXToolbox(domain)
     print("[+] {}: {}".format(domain, mxtoolbox))
 
+    if len(umbrella_apikey):
+        umbrella = checkUmbrella(domain)
+        print("[+] {}: {}".format(domain, umbrella))
+
     print("")
     
     results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
@@ -356,6 +382,7 @@ Examples:
     parser.add_argument("-o", "--output", required=False, default=None, type=str, help="output file path")
     parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
     parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
+    parser.add_argument('-um','--umbrella-apikey', help='API Key for umbrella (paid)', required=False, default="", type=str, dest='umbrella_apikey')
     args = parser.parse_args()
 
     # Load dependent modules
@@ -414,6 +441,8 @@ Examples:
     keyword_start = args.keyword_start
 
     keyword_end = args.keyword_end
+
+    umbrella_apikey = args.umbrella_apikey
 
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
