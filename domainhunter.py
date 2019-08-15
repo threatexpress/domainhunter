@@ -708,6 +708,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     <th>BlueCoat</th>
                     <th>IBM X-Force</th>
                     <th>Cisco Talos</th>
+                    <th>Umbrella</th>
                     <th>WatchGuard</th>
                     <th>Namecheap</th>
                     <th>Archive.org</th>
