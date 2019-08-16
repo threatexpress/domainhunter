@@ -286,7 +286,7 @@ def checkDomain(domain):
 
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mxtoolbox]
     return results
 
 def solveCaptcha(url,session):  
@@ -509,7 +509,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'MXToolbox']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:
@@ -679,7 +679,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
 
             # Append entry to new list with reputation if at least one service reports reputation
             if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
-                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error'))):
+                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
                 
                 data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
 
@@ -750,5 +750,5 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     print("[*] Log written to {}\n".format(logfilename))
     
     # Print Text Table
-    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos']
+    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos', 'Umbrella']
     print(drawTable(header,sortedDomains))
