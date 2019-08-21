@@ -280,6 +280,7 @@ def checkDomain(domain):
     mxtoolbox = checkMXToolbox(domain)
     print("[+] {}: {}".format(domain, mxtoolbox))
 
+    umbrella = "not available"
     if len(umbrella_apikey):
         umbrella = checkUmbrella(domain)
         print("[+] {}: {}".format(domain, umbrella))
