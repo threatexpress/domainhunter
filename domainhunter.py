@@ -37,6 +37,31 @@ def doSleep(timing):
         time.sleep(random.randrange(5,10))
     # There's no elif timing == 5 here because we don't want to sleep for -t 5
 
+def checkUmbrella(domain):
+    try:
+        url = 'https://investigate.api.umbrella.com/domains/categorization/?showLabels'
+        postData = [domain]
+
+        headers = {
+            'User-Agent':useragent,
+            'Content-Type':'application/json; charset=UTF-8',
+            'Authorization': 'Bearer {}'.format(umbrella_apikey)
+        }
+
+        print('[*] Umbrella: {}'.format(domain))
+        
+        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+        responseJSON = json.loads(response.text)
+        if len(responseJSON[domain]['content_categories']) > 0:
+            return responseJSON[domain]['content_categories'][0]
+        else:
+            return 'Uncategorized'
+
+    except Exception as e:
+        print('[-] Error retrieving Umbrella reputation! {0}'.format(e))
+        return "error"
+
+
 def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
@@ -255,9 +280,14 @@ def checkDomain(domain):
     mxtoolbox = checkMXToolbox(domain)
     print("[+] {}: {}".format(domain, mxtoolbox))
 
+    umbrella = "not available"
+    if len(umbrella_apikey):
+        umbrella = checkUmbrella(domain)
+        print("[+] {}: {}".format(domain, umbrella))
+
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mxtoolbox]
     return results
 
 def solveCaptcha(url,session):  
@@ -356,6 +386,7 @@ Examples:
     parser.add_argument("-o", "--output", required=False, default=None, type=str, help="output file path")
     parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
     parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
+    parser.add_argument('-um','--umbrella-apikey', help='API Key for umbrella (paid)', required=False, default="", type=str, dest='umbrella_apikey')
     args = parser.parse_args()
 
     # Load dependent modules
@@ -414,6 +445,8 @@ Examples:
     keyword_start = args.keyword_start
 
     keyword_end = args.keyword_end
+
+    umbrella_apikey = args.umbrella_apikey
 
     malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
 
@@ -477,7 +510,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'MXToolbox']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:
@@ -618,6 +651,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
             bluecoat = '-'
             ibmxforce = '-'
             ciscotalos = '-'
+            umbrella = '-'
 
             # Perform domain reputation checks
             if check:
@@ -635,15 +669,20 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                 if ciscotalos not in unwantedResults:
                     print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
 
+                if len(umbrella_apikey):
+                    umbrella = checkUmbrella(domain)
+                    if umbrella not in unwantedResults:
+                        print("[+] Umbrella {}: {}".format(domain, umbrella))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
 
             # Append entry to new list with reputation if at least one service reports reputation
             if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
-                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error'))):
+                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
                 
-                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos])
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -670,6 +709,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
                     <th>BlueCoat</th>
                     <th>IBM X-Force</th>
                     <th>Cisco Talos</th>
+                    <th>Umbrella</th>
                     <th>WatchGuard</th>
                     <th>Namecheap</th>
                     <th>Archive.org</th>
@@ -691,6 +731,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
         htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">{}</a></td>'.format(i[5]) # Bluecoat
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
         htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
+        htmlTableBody += '<td>{}</td>'.format(i[8]) # Cisco Umbrella
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
@@ -710,5 +751,5 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     print("[*] Log written to {}\n".format(logfilename))
     
     # Print Text Table
-    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos']
+    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos', 'Umbrella']
     print(drawTable(header,sortedDomains))
