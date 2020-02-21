@@ -77,7 +77,7 @@ Install Python requirements
     
 Optional - Install additional OCR support dependencies
 
-- Debian/Ubuntu: `apt-get install tesseract-ocr python3-imaging`
+- Debian/Ubuntu: `apt-get install tesseract-ocr python3-pil`
 
 - MAC OSX: `brew install tesseract`
 
@@ -88,7 +88,7 @@ __pipenv installation__
 
 Optional - Install additional OCR support dependencies
 
-- Debian/Ubuntu: `apt-get install tesseract-ocr python3-imaging`
+- Debian/Ubuntu: `apt-get install tesseract-ocr python3-pil`
 
 ## Tip
 
