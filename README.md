@@ -8,6 +8,10 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 21 February 2020
+   + updated Pillow version to support Python3.7+
+   + Add instructions to install using pipenv
+
 - 13 August 2019
    + Added authentication support for ExpiredDomains.net thanks to acole76!
    
@@ -65,6 +69,8 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Installation
 
+__Direct Installation__
+
 Install Python requirements
 
     pip3 install -r requirements.txt
@@ -74,6 +80,19 @@ Optional - Install additional OCR support dependencies
 - Debian/Ubuntu: `apt-get install tesseract-ocr python3-imaging`
 
 - MAC OSX: `brew install tesseract`
+
+__pipenv installation__
+
+    pipenv --python 3.7
+    pipenv install
+
+Optional - Install additional OCR support dependencies
+
+- Debian/Ubuntu: `apt-get install tesseract-ocr python3-imaging`
+
+## Tip
+
+You will need credentials from expireddomains.net for full functionality
 
 ## Usage
 
