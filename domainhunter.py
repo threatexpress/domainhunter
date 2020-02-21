@@ -529,7 +529,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)'
     urls = []
     
     if args.password == None or args.password == "":
-        password = getpass.getpass("Password: ")
+        password = getpass.getpass("expireddomains.net Password: ")
 
     loginExpiredDomains()
     

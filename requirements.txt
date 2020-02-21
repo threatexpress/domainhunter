@@ -2,7 +2,7 @@ requests
 texttable==0.8.7
 beautifulsoup4==4.5.3
 lxml
-pillow==5.0.0
+pillow==5.4.0
 pytesseract
 urllib3
 uuid
