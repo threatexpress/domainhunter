@@ -33,4 +33,4 @@ jobs:
     - name: Test with pytest
       run: |
         python domainhunter.py -h
-        python domainhunter.py -c github.com
+        python domainhunter.py -s github.com
