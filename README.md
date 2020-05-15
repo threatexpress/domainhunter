@@ -8,6 +8,11 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 
 ## Changes
 
+- 15 May 2020
+   + Fix BlueCoat reputation checking to bypass XSRF and additional POST paramater checks
+   + Add internal code comments for readability
+   + Add check for ExpiredDomains username before asking for a password
+  
 - 21 February 2020
    + updated Pillow version to support Python3.7+
    + Add instructions to install using pipenv
