@@ -18,6 +18,7 @@ import os
 import sys
 from urllib.parse import urlparse
 import getpass
+import re
 import uuid
 
 __version__ = "20190716"
@@ -257,6 +258,23 @@ def checkMXToolbox(domain):
         print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
         return "error"
 
+def checkTrendMicro(domain):
+    try:
+        print('[*] TrendMicro: {}'.format(domain))
+        s = requests.Session()
+        s.get("https://global.sitesafety.trendmicro.com/")
+        url="https://global.sitesafety.trendmicro.com/result.php"
+        postData={
+            'urlname':"http://%s" % domain,
+            'getinfo':"Check Now"
+        }
+        r=s.post(url,postData)
+        m=re.findall('<div class="(:?labeltitleresult|labeltitlesmallresult)">([^<]+)</div>',r.text)
+        return "|".join(x[1] for x in m)
+    except Exception as e:
+        print('[-] Error retrieving TrendMicro reputation!')
+        return "error"
+
 def downloadMalwareDomains(malwaredomainsURL):
     url = malwaredomainsURL
     response = s.get(url=url,headers=headers,verify=False,proxies=proxies)
@@ -271,7 +289,6 @@ def checkDomain(domain):
 
     if domain in maldomainsList:
         print("[!] {}: Identified as known malware domain (malwaredomains.com)".format(domain))
-      
     bluecoat = checkBluecoat(domain)
     print("[+] {}: {}".format(domain, bluecoat))
     
@@ -288,6 +305,9 @@ def checkDomain(domain):
     if len(umbrella_apikey):
         umbrella = checkUmbrella(domain)
         print("[+] {}: {}".format(domain, umbrella))
+
+    trendmicro= checkTrendMicro(domain)
+    print("[+] {}: {}".format(domain, trendmicro))
 
     print("")
     
