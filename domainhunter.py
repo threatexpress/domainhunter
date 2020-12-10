@@ -65,7 +65,12 @@ def checkUmbrella(domain):
 def checkBluecoat(domain):
     try:
         url = 'https://sitereview.bluecoat.com/resource/lookup'
-        postData = {'url':domain,'captcha':''}
+        postData = {
+            'url':domain,
+            'captcha':'',
+            'key': '58e71fe7fe53cd4537c9a772930d6826c34c619e827b4d0da885898d38b0e906',
+            'phrase':'SWYgeW91IGNhbiByZWFkIHRoaXMsIHlvdSBhcmUgbGlrZWx5IGFib3V0IHRvIGRvIHNvbWV0aGluZyB0aGF0IGlzIGFnYWluc3Qgb3VyIFRlcm1zIG9mIFNlcnZpY2U='
+            }
 
         token = str(uuid.uuid4())
 
@@ -85,7 +90,6 @@ def checkBluecoat(domain):
         
         response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
         responseJSON = json.loads(response.text)
-        
         if 'errorType' in responseJSON:
             a = responseJSON['errorType']
         else:
