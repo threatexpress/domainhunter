@@ -5,4 +5,3 @@ lxml
 pillow
 pytesseract
 urllib3
-uuid
