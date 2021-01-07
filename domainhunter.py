@@ -133,13 +133,13 @@ def checkBluecoat(domain):
                     if captcha:
                         b64captcha = base64.urlsafe_b64encode(captcha.encode('utf-8')).decode('utf-8')
                     
-                        # Send CAPTCHA solution via GET since inclusion with the domain categorization request doens't work anymore
+                        # Send CAPTCHA solution via GET since inclusion with the domain categorization request doesn't work anymore
                         captchasolutionURL = 'https://sitereview.bluecoat.com/resource/captcha-request/{0}'.format(b64captcha)
                         print('[*] Submiting CAPTCHA at {0}'.format(captchasolutionURL))
                         response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                         # Try the categorization request again
-                        response = s.post(url,headers=headers,cookies=c,json=postData,verify=False,proxies=proxies)
+                        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
 
                         responseJSON = json.loads(response.text)
 
