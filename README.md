@@ -9,11 +9,12 @@ This Python based tool was written to quickly query the Expireddomains.net searc
 ## Changelog
 
 - 07 January 2021
-   + Fix Symantec Site Review reputation checking to bypass XSRF and additional POST parameter checks
+   + Fix Symantec Site Review (Bluecoat) reputation checking to bypass XSRF and additional POST parameter checks
    + Temporary fix for broken malware domains link. This service is no longer offered in the form used by DomainHunter.
    + Add internal code comments for readability
    + Add check for ExpiredDomains username before asking for a password
-  
+   + Disable Google Safe Browsing/PhishTank reputation from MxToolbox as this service has changed
+
 - 21 February 2020
    + updated Pillow version to support Python3.7+
    + Add instructions to install using pipenv

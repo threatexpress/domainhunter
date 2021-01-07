@@ -430,6 +430,7 @@ Examples:
     parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
     parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
     parser.add_argument('-um','--umbrella-apikey', help='API Key for umbrella (paid)', required=False, default="", type=str, dest='umbrella_apikey')
+    parser.add_argument('-q','--quiet', help='Surpress initial ASCII art and header', required=False, default=False, action='store_true', dest='quiet')
     args = parser.parse_args()
 
     # Load dependent modules
@@ -496,7 +497,7 @@ Examples:
     expireddomainHost = "https://member.expireddomains.net"
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-            
+
     useragent = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)'
 
     headers = {'User-Agent':useragent}
@@ -520,19 +521,19 @@ Examples:
 | |_| | |_| | |  | |/ ___ \ | || |\  | |  _  | |_| | |\  | | | | |___|  _ < 
 |____/ \___/|_|  |_/_/   \_\___|_| \_| |_| |_|\___/|_| \_| |_| |_____|_| \_\ '''
 
-    print(title)
-    print("")
-    print("Expired Domains Reputation Checker")
-    print("Authors: @joevest and @andrewchiles\n")
-    print("DISCLAIMER: This is for educational purposes only!")
-    disclaimer = '''It is designed to promote education and the improvement of computer/cyber security.  
+    # Print header
+    if not (args.quiet):
+        print(title)
+        print('''\nExpired Domains Reputation Checker
+Authors: @joevest and @andrewchiles\n
+DISCLAIMER: This is for educational purposes only!
+It is designed to promote education and the improvement of computer/cyber security.  
 The authors or employers are not liable for any illegal act or misuse performed by any user of this tool.
-If you plan to use this content for illegal purpose, don't.  Have a nice day :)'''
-    print(disclaimer)
-    print("")
+If you plan to use this content for illegal purpose, don't.  Have a nice day :)\n''')
 
     # Download known malware domains
-    print('[*] Downloading malware domain list from {}\n'.format(malwaredomainsURL))
+    # print('[*] Downloading malware domain list from {}\n'.format(malwaredomainsURL))
+    
     maldomains = downloadMalwareDomains(malwaredomainsURL)
     maldomainsList = maldomains.split("\n")
 
