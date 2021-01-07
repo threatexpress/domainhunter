@@ -4,12 +4,13 @@ Authors Joe Vest (@joevest) & Andrew Chiles (@andrewchiles)
 
 Domain name selection is an important aspect of preparation for penetration tests and especially Red Team engagements. Commonly, domains that were used previously for benign purposes and were properly categorized can be purchased for only a few dollars. Such domains can allow a team to bypass reputation based web filters and network egress restrictions for phishing and C2 related tasks. 
 
-This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec WebPulse (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
+This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec Site Review (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
 
-## Changes
+## Changelog
 
-- 15 May 2020
-   + Fix BlueCoat reputation checking to bypass XSRF and additional POST paramater checks
+- 07 January 2021
+   + Fix Symantec Site Review reputation checking to bypass XSRF and additional POST parameter checks
+   + Temporary fix for broken malware domains link. This service is no longer offered in the form used by DomainHunter.
    + Add internal code comments for readability
    + Add check for ExpiredDomains username before asking for a password
   

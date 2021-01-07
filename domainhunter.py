@@ -19,7 +19,7 @@ import sys
 from urllib.parse import urlparse
 import getpass
 
-__version__ = "20200515"
+__version__ = "20210107"
 
 ## Functions
 
@@ -491,7 +491,7 @@ Examples:
 
     umbrella_apikey = args.umbrella_apikey
 
-    malwaredomainsURL = 'http://mirror1.malwaredomains.com/files/justdomains'
+    malwaredomainsURL = 'https://gitlab.com/gerowen/old-malware-domains-ad-list/-/raw/master/malwaredomainslist.txt'
     expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
     expireddomainHost = "https://member.expireddomains.net"
 
