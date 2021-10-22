@@ -139,7 +139,7 @@ def checkBluecoat(domain):
                         response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                         # Try the categorization request again
-                        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+                        response = s.post('https://sitereview.bluecoat.com/resource/lookup',headers=headers,json=postData,verify=False,proxies=proxies)
 
                         responseJSON = json.loads(response.text)
 
