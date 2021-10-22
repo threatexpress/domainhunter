@@ -349,7 +349,7 @@ def solveCaptcha(url,session):
 
         # Perform basic OCR without additional image enhancement
         text = pytesseract.image_to_string(Image.open(jpeg))
-        text = text.replace(" ", "")
+        text = text.replace(" ", "").rstrip()
         
         # Remove CAPTCHA file
         try:
