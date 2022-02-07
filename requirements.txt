@@ -5,3 +5,5 @@ lxml
 pillow
 pytesseract
 urllib3
+undetected_chromedriver
+xvfbwrapper

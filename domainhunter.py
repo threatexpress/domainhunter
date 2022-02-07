@@ -2,14 +2,14 @@
 
 ## Title:       domainhunter.py
 ## Author:      @joevest and @andrewchiles
-## Description: Checks expired domains, reputation/categorization, and Archive.org history to determine 
+## Description: Checks expired domains, reputation/categorization, and Archive.org history to determine
 ##              good candidates for phishing and C2 domain names
-
+## Updated: Added McAfee Web Gateway (Cloud) reputation checking + Fixed Bluecoat + CISCO Talos @froyo75
 # If the expected response format from a provider changes, use the traceback module to get a full stack trace without removing try/catch blocks
 #import traceback
 #traceback.print_exc()
 
-import time 
+import time
 import random
 import argparse
 import json
@@ -19,9 +19,69 @@ import sys
 from urllib.parse import urlparse
 import getpass
 
-__version__ = "20210107"
+####FIX BLUECOAT######################
+from hashlib import sha256
+####FIX CISCO TALOS###################
+from xvfbwrapper import Xvfb
+import undetected_chromedriver as uc
+import time
+######################################
+
+__version__ = "20210108"
 
 ## Functions
+
+####FIX CISCO TALOS###################################################################################################################################################
+def getCISCOTalosInfos(domain):
+    """Retrieve CISCO Talos Infos using an optimized selenium chromedriver patch with 'undetected_chromedriver' module
+        To bypass bot mitigation systems (like Distil / Imperva/ Datadadome / CloudFlare IUAM)"""
+    url = "https://talosintelligence.com/reputation_center/lookup?search={0}".format(domain)
+    vdisplay = Xvfb(width=800, height=1280)
+    vdisplay.start()
+    options = uc.ChromeOptions()
+    options.add_argument(f'--no-first-run --no-service-autorun --password-store=basic')
+    options.add_argument(f'--disable-gpu')
+    options.add_argument(f'--no-sandbox')
+    options.add_argument(f'--disable-dev-shm-usage')
+    driver = uc.Chrome(options=options,headless=False,executable_path='/usr/bin/chromedriver')
+    print("[*] Retrieving infos from Cisco Talos...")
+    jitter = 5
+    with driver:
+        driver.get(url)
+        time.sleep(random.randrange(delay,delay+jitter))
+        response = driver.page_source
+    driver.quit()
+    vdisplay.stop()
+
+    if "DDoS protection by" in response:
+        print("\n[-] Error retrieving Talos reputation! => DDoS protection by Cloudflare (Please try to increase the delay to bypass the bot mitigation system!)")
+        return "error"
+
+    web_reputation = "Unknown"
+    email_reputation = "Unknown"
+    added_blocklist = "Unknown"
+    category = "Uncategorized"
+    soup = BeautifulSoup(response,"html.parser")
+    for span in soup.findAll("span", {"class": ["email-rep-label details-rep--", "new-legacy-label", "tl-bl"]}):
+        class_names = span['class']
+        if "email-rep-label" in class_names and span.text != '-':
+            email_reputation = span.text
+        if "new-legacy-label" in class_names:
+            web_reputation = span.text
+        if "tl-bl" in class_names:
+            added_blocklist = span.text
+
+    for td in soup.findAll("td", {"class": ["content-category"]}):
+        class_names = td['class']
+
+    if "content-category" in class_names:
+        category = td.text
+
+    if category == "Uncategorized":
+        return "Uncategorized"
+    else:
+        return '{0}, Email Reputation: {1} / Web Reputation: {2} / Added to block list: {3}'.format(category,email_reputation,web_reputation,added_blocklist)
+###############################################################################################################################################################################
 
 def doSleep(timing):
     """Add nmap like random sleep interval for multiple requests"""
@@ -93,11 +153,24 @@ def checkBluecoat(domain):
             'U2NyaXB0aW5nIGFnYWluc3QgU2l0ZSBSZXZpZXcgaXMgYWdhaW5zdCB0aGUgU2l0ZSBSZXZpZXcgVGVybXMgb2YgU2VydmljZQ=='
         ]
         
+        ####FIX BLUECOAT###################################################################################################################
+        def get_xsrf_random_part(xsrf_token_parts):
+          return random.choice(xsrf_token_parts)
+
+        xsrf_token_parts = token.split('-')
+        xsrf_random_part = get_xsrf_random_part(xsrf_token_parts)
+        key_data = xsrf_random_part + ': ' + token
+        key = sha256(key_data.encode('utf-8')).hexdigest()
+        random_phrase = base64.b64decode(random.choice(phrases)).decode('utf-8')
+        phrase_data = xsrf_random_part + ': ' + random_phrase
+        phrase = sha256(phrase_data.encode('utf-8')).hexdigest()
+        ####################################################################################################################################
+
         postData = {
             'url':domain,
             'captcha':'',
-            'key':'%032x' % random.getrandbits(256), # Generate a random 256bit "hash-like" string
-            'phrase':random.choice(phrases), # Pick a random base64 phrase from the list
+            'key':key,
+            'phrase':phrase, # Pick a random base64 phrase from the list
             'source':'new-lookup'}
 
         headers = {'User-Agent':useragent,
@@ -157,6 +230,70 @@ def checkBluecoat(domain):
         print('[-] Error retrieving Bluecoat reputation! {0}'.format(e))
         return "error"
 
+def checkMcAfeeWG(domain):
+    """McAfee Web Gateway Domain Reputation"""
+   
+    try:
+        print('[*] McAfee Web Gateway (Cloud): {}'.format(domain))
+
+        # HTTP Session container, used to manage cookies, session tokens and other session information
+        s = requests.Session()
+
+        headers = {
+                'User-Agent':useragent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Referer':'https://www.trustedsource.org/'
+                }  
+
+        # Establish our session information
+        response = s.get("https://www.trustedsource.org",headers=headers,verify=False,proxies=proxies)
+        
+        # Pull the hidden attributes from the response
+        soup = BeautifulSoup(response.text,"html.parser")
+        hidden_tags = soup.find_all("input",  {"type": "hidden"})
+        for tag in hidden_tags:
+            if tag['name'] == 'sid':
+                sid = tag['value']
+            elif tag['name'] == 'e':
+                e = tag['value']
+            elif tag['name'] == 'c':
+                c = tag['value']
+            elif tag['name'] == 'p':
+                p = tag['value']
+
+        # Retrieve the categorization infos 
+        multipart_form_data = {
+            'sid': (None, sid),
+            'e': (None, e),
+            'c': (None, c),
+            'p': (None, p),
+            'action': (None, 'checksingle'),
+            'product': (None, '14-ts'),
+            'url': (None, domain)
+        }
+
+        response = s.post('https://www.trustedsource.org/en/feedback/url',headers=headers,files=multipart_form_data,verify=False,proxies=proxies)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text,"html.parser")
+            for table in soup.findAll("table", {"class": ["result-table"]}):
+                datas = table.find_all('td')
+                if "not valid" or "Uncategorized" in datas[2].text:
+                    a = 'Uncategorized'
+                else:
+                    status = datas[2].text
+                    category = (datas[3].text[1:]).strip().replace('-',' -')
+                    web_reputation = datas[4].text
+                    a = '{0}, Status: {1}, Web Reputation: {2}'.format(category,status,web_reputation)
+            return a
+        else:
+            raise Exception
+
+    except Exception as e:
+        print('[-] Error retrieving McAfee Web Gateway Domain Reputation!')
+        return "error"
+
 def checkIBMXForce(domain):
     """IBM XForce Domain Reputation"""
 
@@ -200,29 +337,30 @@ def checkIBMXForce(domain):
 def checkTalos(domain):
     """Cisco Talos Domain Reputation"""
 
-    url = 'https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc'.format(domain)
-    headers = {'User-Agent':useragent,
-               'Referer':url}
+    #url = 'https://www.talosintelligence.com/sb_api/query_lookup?query=%2Fapi%2Fv2%2Fdetails%2Fdomain%2F&query_entry={0}&offset=0&order=ip+asc'.format(domain)
+    #headers = {'User-Agent':useragent,
+    #           'Referer':url}
 
     print('[*] Cisco Talos: {}'.format(domain))
     try:
-        response = s.get(url,headers=headers,verify=False,proxies=proxies)
-
-        responseJSON = json.loads(response.text)
-
-        if 'error' in responseJSON:
-            a = str(responseJSON['error'])
-            if a == "Unfortunately, we can't find any results for your search.":
-                a = 'Uncategorized'
-        
-        elif responseJSON['category'] is None:
-            a = 'Uncategorized'
-
-        else:
-            a = '{0} (Score: {1})'.format(str(responseJSON['category']['description']), str(responseJSON['web_score_name']))
-       
-        return a
-
+    #    response = s.get(url,headers=headers,verify=False,proxies=proxies)
+    #    responseJSON = json.loads(response.text)
+    #    if 'error' in responseJSON:
+    #        a = str(responseJSON['error'])
+    #        if a == "Unfortunately, we can't find any results for your search.":
+    #            a = 'Uncategorized'
+    #
+    #    elif responseJSON['category'] is None:
+    #        a = 'Uncategorized'
+    #
+    #    else:
+    #        a = '{0} (Score: {1})'.format(str(responseJSON['category']['description']), str(responseJSON['web_score_name']))
+    #
+    #    return a
+    #
+    ####FIX CISCO TALOS###################
+    	return getCISCOTalosInfos(domain)
+    #####################################
     except Exception as e:
         print('[-] Error retrieving Talos reputation! {0}'.format(e))
         return "error"
@@ -312,6 +450,9 @@ def checkDomain(domain):
     ibmxforce = checkIBMXForce(domain)
     print("[+] {}: {}".format(domain, ibmxforce))
 
+    mcafeewg = checkMcAfeeWG(domain)
+    print("[+] {}: {}".format(domain, mcafeewg))
+
     ciscotalos = checkTalos(domain)
     print("[+] {}: {}".format(domain, ciscotalos))
 
@@ -327,7 +468,7 @@ def checkDomain(domain):
 
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,mcafeewg,ciscotalos,umbrella,mxtoolbox]
     return results
 
 def solveCaptcha(url,session):  
@@ -430,6 +571,7 @@ Examples:
     parser.add_argument('-ks','--keyword-start', help='Keyword starts with used to refine search results', required=False, default="", type=str, dest='keyword_start')
     parser.add_argument('-ke','--keyword-end', help='Keyword ends with used to refine search results', required=False, default="", type=str, dest='keyword_end')
     parser.add_argument('-um','--umbrella-apikey', help='API Key for umbrella (paid)', required=False, default="", type=str, dest='umbrella_apikey')
+    parser.add_argument('-d','--delay', help='Specify the delay (in seconds) to bypass DDoS antibot system (Distil / Imperva/ Datadadome / CloudFlare IUAM)', required=False, default=10, type=int)
     parser.add_argument('-q','--quiet', help='Surpress initial ASCII art and header', required=False, default=False, action='store_true', dest='quiet')
     args = parser.parse_args()
 
@@ -460,6 +602,10 @@ Examples:
             quit(0)
     
 ## Variables
+    #######FIX CISCO TALOS######
+    delay = args.delay
+    ###########################
+
     username = args.username
 
     password = args.password
@@ -525,7 +671,8 @@ Examples:
     if not (args.quiet):
         print(title)
         print('''\nExpired Domains Reputation Checker
-Authors: @joevest and @andrewchiles\n
+Authors: @joevest and @andrewchiles
+Updated by: @froyo75 (Added McAfee Web Gateway (Cloud) reputation checking & Fixed Bluecoat + CISCO TALOS)\n
 DISCLAIMER: This is for educational purposes only!
 It is designed to promote education and the improvement of computer/cyber security.  
 The authors or employers are not liable for any illegal act or misuse performed by any user of this tool.
@@ -553,7 +700,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'McAfee Web Gateway (Cloud)', 'Cisco Talos', 'Umbrella', 'MXToolbox']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:
@@ -695,6 +842,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
             status = domain_entry[4]
             bluecoat = '-'
             ibmxforce = '-'
+            mcafeewg = '-'
             ciscotalos = '-'
             umbrella = '-'
 
@@ -710,6 +858,10 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                 if ibmxforce not in unwantedResults:
                     print("[+] IBM XForce - {}: {}".format(domain, ibmxforce))
                 
+                mcafeewg = checkMcAfeeWG(domain)
+                if mcafeewg not in unwantedResults:
+                    print("[+] McAfee Web Gateway (Cloud) {}: {}".format(domain, mcafeewg))
+
                 ciscotalos = checkTalos(domain)
                 if ciscotalos not in unwantedResults:
                     print("[+] Cisco Talos {}: {}".format(domain, ciscotalos))
@@ -725,9 +877,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
 
             # Append entry to new list with reputation if at least one service reports reputation
             if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
-                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
+                and (ibmxforce in ('Not found.','error')) and (mcafeewg in ('Uncategorized','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
                 
-                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,mcafeewg,ciscotalos,umbrella])
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -753,6 +905,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     <th>Status</th>
                     <th>BlueCoat</th>
                     <th>IBM X-Force</th>
+                    <th>McAfee Web Gateway (Cloud)<th>
                     <th>Cisco Talos</th>
                     <th>Umbrella</th>
                     <th>WatchGuard</th>
@@ -775,8 +928,9 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
 
         htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">{}</a></td>'.format(i[5]) # Bluecoat
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
-        htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
-        htmlTableBody += '<td>{}</td>'.format(i[8]) # Cisco Umbrella
+        htmlTableBody += '<td><a href="https://www.trustedsource.org/en/feedback/url?action=checksingle&url=http%3A%2F%2F{}&product=14-ts" target="_blank">{}</a></td>'.format(i[0],i[7]) # McAfee Web Gateway (Cloud)
+        htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[8]) # Cisco Talos
+        htmlTableBody += '<td>{}</td>'.format(i[9]) # Cisco Umbrella
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
@@ -796,5 +950,5 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
     print("[*] Log written to {}\n".format(logfilename))
     
     # Print Text Table
-    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'Cisco Talos', 'Umbrella']
+    header = ['Domain', 'Birth', '#', 'TLDs', 'Status', 'BlueCoat', 'IBM', 'McAfee Web Gateway (Cloud)', 'Cisco Talos', 'Umbrella']
     print(drawTable(header,sortedDomains))
