@@ -8,7 +8,8 @@ FROM ubuntu:16.04
 RUN apt-get update \
 	&& apt-get install python3-pip -y\
 	&& apt-get install tesseract-ocr -y\
-	&& apt-get install python3-pil -y
+	&& apt-get install python3-pil -y\
+	&& apt-get install libxml2-dev libxslt-dev zlib1g-dev -y
 
 ADD domainhunter.py /
 ADD requirements.txt /
