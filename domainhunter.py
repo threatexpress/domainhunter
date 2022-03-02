@@ -279,7 +279,7 @@ def checkMcAfeeWG(domain):
             soup = BeautifulSoup(response.text,"html.parser")
             for table in soup.findAll("table", {"class": ["result-table"]}):
                 datas = table.find_all('td')
-                if "not valid" or "Uncategorized" in datas[2].text:
+                if "not valid" in datas[2].text:
                     a = 'Uncategorized'
                 else:
                     status = datas[2].text
