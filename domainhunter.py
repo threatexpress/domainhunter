@@ -244,11 +244,11 @@ def checkMcAfeeWG(domain):
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
-                'Referer':'https://www.trustedsource.org/'
+                'Referer':'https://sitelookup.mcafee.com/'
                 }  
 
         # Establish our session information
-        response = s.get("https://www.trustedsource.org",headers=headers,verify=False,proxies=proxies)
+        response = s.get("https://sitelookup.mcafee.com",headers=headers,verify=False,proxies=proxies)
         
         # Pull the hidden attributes from the response
         soup = BeautifulSoup(response.text,"html.parser")
@@ -274,7 +274,7 @@ def checkMcAfeeWG(domain):
             'url': (None, domain)
         }
 
-        response = s.post('https://www.trustedsource.org/en/feedback/url',headers=headers,files=multipart_form_data,verify=False,proxies=proxies)
+        response = s.post('https://sitelookup.mcafee.com/en/feedback/url',headers=headers,files=multipart_form_data,verify=False,proxies=proxies)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text,"html.parser")
             for table in soup.findAll("table", {"class": ["result-table"]}):
@@ -928,7 +928,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
 
         htmlTableBody += '<td><a href="https://sitereview.bluecoat.com/" target="_blank">{}</a></td>'.format(i[5]) # Bluecoat
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
-        htmlTableBody += '<td><a href="https://www.trustedsource.org/en/feedback/url?action=checksingle&url=http%3A%2F%2F{}&product=14-ts" target="_blank">{}</a></td>'.format(i[0],i[7]) # McAfee Web Gateway (Cloud)
+        htmlTableBody += '<td><a href="https://sitelookup.mcafee.com/en/feedback/url?action=checksingle&url=http%3A%2F%2F{}&product=14-ts" target="_blank">{}</a></td>'.format(i[0],i[7]) # McAfee Web Gateway (Cloud)
         htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[8]) # Cisco Talos
         htmlTableBody += '<td>{}</td>'.format(i[9]) # Cisco Umbrella
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
