@@ -376,7 +376,7 @@ def drawTable(header,data):
 def loginExpiredDomains():
     """Login to the ExpiredDomains site with supplied credentials"""
 
-    data = "login=%s&password=%s&redirect_2_url=/" % (username, password)
+    data = "login=%s&password=%s&redirect_2_url=/begin" % (username, password)
     headers["Content-Type"] = "application/x-www-form-urlencoded"
     r = s.post(expireddomainHost + "/login/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=False)
     cookies = s.cookies.get_dict()
