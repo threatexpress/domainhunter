@@ -18,8 +18,10 @@ import os
 import sys
 from urllib.parse import urlparse
 import getpass
+# Bluecoat XSRF
+from hashlib import sha256
 
-__version__ = "20210107"
+__version__ = "20221024"
 
 ## Functions
 
@@ -93,11 +95,22 @@ def checkBluecoat(domain):
             'U2NyaXB0aW5nIGFnYWluc3QgU2l0ZSBSZXZpZXcgaXMgYWdhaW5zdCB0aGUgU2l0ZSBSZXZpZXcgVGVybXMgb2YgU2VydmljZQ=='
         ]
         
+        # New Bluecoat XSRF Code added May 2022 thanks to @froyo75
+        xsrf_token_parts = token.split('-')
+        xsrf_random_part = random.choice(xsrf_token_parts)
+        key_data = xsrf_random_part + ': ' + token
+        # Key used as part of POST data
+        key = sha256(key_data.encode('utf-8')).hexdigest()
+        random_phrase = base64.b64decode(random.choice(phrases)).decode('utf-8')
+        phrase_data = xsrf_random_part + ': ' + random_phrase
+        # Phrase used as part of POST data
+        phrase = sha256(phrase_data.encode('utf-8')).hexdigest()
+        
         postData = {
             'url':domain,
             'captcha':'',
-            'key':'%032x' % random.getrandbits(256), # Generate a random 256bit "hash-like" string
-            'phrase':random.choice(phrases), # Pick a random base64 phrase from the list
+            'key':key,
+            'phrase':phrase, # Pick a random base64 phrase from the list
             'source':'new-lookup'}
 
         headers = {'User-Agent':useragent,
