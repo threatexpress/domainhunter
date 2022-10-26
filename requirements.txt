@@ -2,6 +2,6 @@ requests
 texttable==0.8.7
 beautifulsoup4==4.5.3
 lxml
-pillow==5.4.0
+pillow
 pytesseract
 urllib3

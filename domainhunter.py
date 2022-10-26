@@ -18,10 +18,11 @@ import os
 import sys
 from urllib.parse import urlparse
 import getpass
+
 # Bluecoat XSRF
 from hashlib import sha256
 
-__version__ = "20221024"
+__version__ = "20221025"
 
 ## Functions
 
@@ -152,7 +153,8 @@ def checkBluecoat(domain):
                         response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                         # Try the categorization request again
-                        response = s.post(url,headers=headers,json=postData,verify=False,proxies=proxies)
+
+                        response = s.post('https://sitereview.bluecoat.com/resource/lookup',headers=headers,json=postData,verify=False,proxies=proxies)
 
                         responseJSON = json.loads(response.text)
 
@@ -346,9 +348,7 @@ def checkDomain(domain):
     return results
 
 def solveCaptcha(url,session):  
-    """Downloads CAPTCHA image and saves to current directory for OCR with tesseract
-    Returns CAPTCHA string or False if error ocurred
-    """
+    """Downloads CAPTCHA image and saves to current directory for OCR with tesseract"""
     
     jpeg = 'captcha.jpg'
     
@@ -364,7 +364,7 @@ def solveCaptcha(url,session):
 
         # Perform basic OCR without additional image enhancement
         text = pytesseract.image_to_string(Image.open(jpeg))
-        text = text.replace(" ", "")
+        text = text.replace(" ", "").rstrip()
         
         # Remove CAPTCHA file
         try:
@@ -391,7 +391,8 @@ def drawTable(header,data):
 def loginExpiredDomains():
     """Login to the ExpiredDomains site with supplied credentials"""
 
-    data = "login=%s&password=%s&redirect_2_url=/" % (username, password)
+    data = "login=%s&password=%s&redirect_2_url=/begin" % (username, password)
+    
     headers["Content-Type"] = "application/x-www-form-urlencoded"
     r = s.post(expireddomainHost + "/login/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=False)
     cookies = s.cookies.get_dict()
