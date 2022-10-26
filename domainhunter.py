@@ -240,66 +240,6 @@ def checkTalos(domain):
         print('[-] Error retrieving Talos reputation! {0}'.format(e))
         return "error"
 
-def checkMXToolbox(domain):
-    """ Checks the MXToolbox service for Google SafeBrowsing and PhishTank information. Currently broken"""
-    url = 'https://mxtoolbox.com/Public/Tools/BrandReputation.aspx'
-    headers = {'User-Agent':useragent,
-            'Origin':url,
-            'Referer':url}  
-
-    print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
-    
-    try:
-        response = s.get(url=url, headers=headers,proxies=proxies,verify=False)
-        
-        soup = BeautifulSoup(response.content,'lxml')
-
-        viewstate = soup.select('input[name=__VIEWSTATE]')[0]['value']
-        viewstategenerator = soup.select('input[name=__VIEWSTATEGENERATOR]')[0]['value']
-        eventvalidation = soup.select('input[name=__EVENTVALIDATION]')[0]['value']
-
-        data = {
-        "__EVENTTARGET": "",
-        "__EVENTARGUMENT": "",
-        "__VIEWSTATE": viewstate,
-        "__VIEWSTATEGENERATOR": viewstategenerator,
-        "__EVENTVALIDATION": eventvalidation,
-        "ctl00$ContentPlaceHolder1$brandReputationUrl": domain,
-        "ctl00$ContentPlaceHolder1$brandReputationDoLookup": "Brand Reputation Lookup",
-        "ctl00$ucSignIn$hfRegCode": 'missing',
-        "ctl00$ucSignIn$hfRedirectSignUp": '/Public/Tools/BrandReputation.aspx',
-        "ctl00$ucSignIn$hfRedirectLogin": '',
-        "ctl00$ucSignIn$txtEmailAddress": '',
-        "ctl00$ucSignIn$cbNewAccount": 'cbNewAccount',
-        "ctl00$ucSignIn$txtFullName": '',
-        "ctl00$ucSignIn$txtModalNewPassword": '',
-        "ctl00$ucSignIn$txtPhone": '',
-        "ctl00$ucSignIn$txtCompanyName": '',
-        "ctl00$ucSignIn$drpTitle": '',
-        "ctl00$ucSignIn$txtTitleName": '',
-        "ctl00$ucSignIn$txtModalPassword": ''
-        }
-          
-        response = s.post(url=url, headers=headers, data=data,proxies=proxies,verify=False)
-
-        soup = BeautifulSoup(response.content,'lxml')
-
-        a = ''
-        if soup.select('div[id=ctl00_ContentPlaceHolder1_noIssuesFound]'):
-            a = 'No issues found'
-            return a
-        else:
-            if soup.select('div[id=ctl00_ContentPlaceHolder1_googleSafeBrowsingIssuesFound]'):
-                a = 'Google SafeBrowsing Issues Found. '
-        
-            if soup.select('div[id=ctl00_ContentPlaceHolder1_phishTankIssuesFound]'):
-                a += 'PhishTank Issues Found'
-            return a
-
-    except Exception as e:
-        print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
-        return "error"
-
 def downloadMalwareDomains(malwaredomainsURL):
     """Downloads a current list of known malicious domains"""
 
@@ -328,11 +268,6 @@ def checkDomain(domain):
     ciscotalos = checkTalos(domain)
     print("[+] {}: {}".format(domain, ciscotalos))
 
-    #This service has completely changed, removing for now
-    #mxtoolbox = checkMXToolbox(domain)
-    #print("[+] {}: {}".format(domain, mxtoolbox))
-    mxtoolbox = "-"
-
     umbrella = "not available"
     if len(umbrella_apikey):
         umbrella = checkUmbrella(domain)
@@ -340,7 +275,7 @@ def checkDomain(domain):
 
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella]
     return results
 
 def solveCaptcha(url,session):  
@@ -566,7 +501,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:

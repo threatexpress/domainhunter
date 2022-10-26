@@ -12,13 +12,13 @@ See [CHANGELOG](./CHANGELOG) for history of updates and release notes!
 
 - Retrieve specified number of recently expired and deleted domains (.com, .net, .org) from ExpiredDomains.net
 - Retrieve available domains based on keyword search from ExpiredDomains.net
-- Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
+- Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, and Cisco Talos
 - Sort results by domain age (if known) and filter for reputation
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
 ## Installation
 
-__Direct Installation__
+### Direct Installation
 
 Install Python requirements
 
@@ -30,7 +30,7 @@ Optional - Install additional OCR support dependencies
 
 - MAC OSX: `brew install tesseract`
 
-__pipenv installation__
+### pipenv installation
 
     pipenv --python 3.7
     pipenv install
@@ -38,6 +38,14 @@ __pipenv installation__
 Optional - Install additional OCR support dependencies
 
 - Debian/Ubuntu: `apt-get install tesseract-ocr python3-pil`
+
+### Docker
+
+Build the container
+`docker build -t domainhunter:latest .`
+
+Run it with your arguments
+`docker run -it domainhunter:latest [args]`
 
 ## Tip
 
@@ -97,8 +105,6 @@ Perform all reputation checks for a single domain
     [*] Downloading malware domain list from http://mirror1.malwaredomains.com/files/justdomains
 
     [*] Fetching domain reputation for: mydomain.com
-    [*] Google SafeBrowsing and PhishTank: mydomain.com
-    [+] mydomain.com: No issues found
     [*] BlueCoat: mydomain.com
     [+] mydomain.com: Technology/Internet
     [*] IBM xForce: mydomain.com
