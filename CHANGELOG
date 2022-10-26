@@ -1,9 +1,12 @@
 # CHANGELOG
 
-## Unreleased
+## 25 October 2022
 
++ Add McAfee Web Gateway (Cloud) reputation check by @froyo75 adopted from PR [#37](https://github.com/threatexpress/domainhunter/pull/37)
 + Bluecoat XSRF fixes by @froyo75 adopted from PR [#37](https://github.com/threatexpress/domainhunter/pull/37) (Huge thanks!)
 + Fix for ExpiredDomains login by @davidlebr1
++ Update Dockerfile
++ Separate this CHANGELOG from the README
 
 ## 07 January 2021
 
