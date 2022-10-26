@@ -11,6 +11,7 @@ See [CHANGELOG](./CHANGELOG) for history of updates and release notes!
 ## Features
 
 - Retrieve specified number of recently expired and deleted domains (.com, .net, .org) from ExpiredDomains.net
+  - Note: You will need credentials from expireddomains.net for full functionality
 - Retrieve available domains based on keyword search from ExpiredDomains.net
 - Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, and Cisco Talos
 - Sort results by domain age (if known) and filter for reputation
@@ -41,15 +42,11 @@ Optional - Install additional OCR support dependencies
 
 ### Docker
 
-Build the container
-`docker build -t domainhunter:latest .`
+1. Build the image
+`docker build -t domainhunter .`
 
-Run it with your arguments
-`docker run -it domainhunter:latest [args]`
-
-## Tip
-
-You will need credentials from expireddomains.net for full functionality
+2. Run it with your arguments
+`docker run -it domainhunter [args]`
 
 ## Usage
 

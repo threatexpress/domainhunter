@@ -240,6 +240,70 @@ def checkTalos(domain):
         print('[-] Error retrieving Talos reputation! {0}'.format(e))
         return "error"
 
+def checkMcAfeeWG(domain):
+    """McAfee Web Gateway Domain Reputation"""
+
+    try:
+        print('[*] McAfee Web Gateway (Cloud): {}'.format(domain))
+
+        # HTTP Session container, used to manage cookies, session tokens and other session information
+        s = requests.Session()
+
+        headers = {
+                'User-Agent':useragent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Referer':'https://sitelookup.mcafee.com/'
+                }  
+
+        # Establish our session information
+        response = s.get("https://sitelookup.mcafee.com",headers=headers,verify=False,proxies=proxies)
+
+        # Pull the hidden attributes from the response
+        soup = BeautifulSoup(response.text,"html.parser")
+        hidden_tags = soup.find_all("input",  {"type": "hidden"})
+        for tag in hidden_tags:
+            if tag['name'] == 'sid':
+                sid = tag['value']
+            elif tag['name'] == 'e':
+                e = tag['value']
+            elif tag['name'] == 'c':
+                c = tag['value']
+            elif tag['name'] == 'p':
+                p = tag['value']
+
+        # Retrieve the categorization infos 
+        multipart_form_data = {
+            'sid': (None, sid),
+            'e': (None, e),
+            'c': (None, c),
+            'p': (None, p),
+            'action': (None, 'checksingle'),
+            'product': (None, '14-ts'),
+            'url': (None, domain)
+        }
+
+        response = s.post('https://sitelookup.mcafee.com/en/feedback/url',headers=headers,files=multipart_form_data,verify=False,proxies=proxies)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text,"html.parser")
+            for table in soup.findAll("table", {"class": ["result-table"]}):
+                datas = table.find_all('td')
+                if "not valid" in datas[2].text:
+                    a = 'Uncategorized'
+                else:
+                    status = datas[2].text
+                    category = (datas[3].text[1:]).strip().replace('-',' -')
+                    web_reputation = datas[4].text
+                    a = '{0}, Status: {1}, Web Reputation: {2}'.format(category,status,web_reputation)
+            return a
+        else:
+            raise Exception
+
+    except Exception as e:
+        print('[-] Error retrieving McAfee Web Gateway Domain Reputation!')
+        return "error"
+
 def downloadMalwareDomains(malwaredomainsURL):
     """Downloads a current list of known malicious domains"""
 
@@ -273,14 +337,17 @@ def checkDomain(domain):
         umbrella = checkUmbrella(domain)
         print("[+] {}: {}".format(domain, umbrella))
 
+    mcafeewg = checkMcAfeeWG(domain)
+    print("[+] {}: {}".format(domain, mcafeewg))
+
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mcafeewg]
     return results
 
 def solveCaptcha(url,session):  
     """Downloads CAPTCHA image and saves to current directory for OCR with tesseract
-    Returns CAPTCHA string or False if error occured
+    Returns CAPTCHA string or False if error ocurred
     """
     
     jpeg = 'captcha.jpg'
@@ -501,7 +568,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'McAfee Web Gateway (Cloud)']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:
@@ -667,15 +734,23 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     if umbrella not in unwantedResults:
                         print("[+] Umbrella {}: {}".format(domain, umbrella))
 
+                mcafeewg = checkMcAfeeWG(domain)
+                if mcafeewg not in unwantedResults:
+                    print("[+] McAfee Web Gateway (Cloud) {}: {}".format(domain, mcafeewg))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
 
             # Append entry to new list with reputation if at least one service reports reputation
-            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
-                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
+            if not (\
+                (bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
+                and (ibmxforce in ('Not found.','error')) \
+                and (ciscotalos in ('Uncategorized','error')) \
+                and (umbrella in ('Uncategorized','None')) \
+                and (mcafeewg in ('Uncategorized','error'))):
                 
-                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella,mcafeewg])
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -725,6 +800,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
         htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
         htmlTableBody += '<td>{}</td>'.format(i[8]) # Cisco Umbrella
+        htmlTableBody += '<td><a href="https://sitelookup.mcafee.com/en/feedback/url?action=checksingle&url=http%3A%2F%2F{}&product=14-ts" target="_blank">{}</a></td>'.format(i[0],i[9]) # McAfee Web Gateway (Cloud)
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org
