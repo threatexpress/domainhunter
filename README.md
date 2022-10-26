@@ -7,6 +7,7 @@ Domain name selection is an important aspect of preparation for penetration test
 This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec Site Review (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
 
 See [CHANGELOG](./CHANGELOG) for history of updates and release notes!
+
 ## Features
 
 - Retrieve specified number of recently expired and deleted domains (.com, .net, .org) from ExpiredDomains.net
