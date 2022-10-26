@@ -19,7 +19,10 @@ import sys
 from urllib.parse import urlparse
 import getpass
 
-__version__ = "20210107"
+# Bluecoat XSRF
+from hashlib import sha256
+
+__version__ = "20221025"
 
 ## Functions
 
@@ -93,11 +96,22 @@ def checkBluecoat(domain):
             'U2NyaXB0aW5nIGFnYWluc3QgU2l0ZSBSZXZpZXcgaXMgYWdhaW5zdCB0aGUgU2l0ZSBSZXZpZXcgVGVybXMgb2YgU2VydmljZQ=='
         ]
         
+        # New Bluecoat XSRF Code added May 2022 thanks to @froyo75
+        xsrf_token_parts = token.split('-')
+        xsrf_random_part = random.choice(xsrf_token_parts)
+        key_data = xsrf_random_part + ': ' + token
+        # Key used as part of POST data
+        key = sha256(key_data.encode('utf-8')).hexdigest()
+        random_phrase = base64.b64decode(random.choice(phrases)).decode('utf-8')
+        phrase_data = xsrf_random_part + ': ' + random_phrase
+        # Phrase used as part of POST data
+        phrase = sha256(phrase_data.encode('utf-8')).hexdigest()
+        
         postData = {
             'url':domain,
             'captcha':'',
-            'key':'%032x' % random.getrandbits(256), # Generate a random 256bit "hash-like" string
-            'phrase':random.choice(phrases), # Pick a random base64 phrase from the list
+            'key':key,
+            'phrase':phrase, # Pick a random base64 phrase from the list
             'source':'new-lookup'}
 
         headers = {'User-Agent':useragent,
@@ -139,6 +153,7 @@ def checkBluecoat(domain):
                         response = s.get(url=captchasolutionURL,headers=headers,verify=False,proxies=proxies)
 
                         # Try the categorization request again
+
                         response = s.post('https://sitereview.bluecoat.com/resource/lookup',headers=headers,json=postData,verify=False,proxies=proxies)
 
                         responseJSON = json.loads(response.text)
@@ -227,64 +242,68 @@ def checkTalos(domain):
         print('[-] Error retrieving Talos reputation! {0}'.format(e))
         return "error"
 
-def checkMXToolbox(domain):
-    """ Checks the MXToolbox service for Google SafeBrowsing and PhishTank information. Currently broken"""
-    url = 'https://mxtoolbox.com/Public/Tools/BrandReputation.aspx'
-    headers = {'User-Agent':useragent,
-            'Origin':url,
-            'Referer':url}  
+def checkMcAfeeWG(domain):
+    """McAfee Web Gateway Domain Reputation"""
 
-    print('[*] Google SafeBrowsing and PhishTank: {}'.format(domain))
-    
     try:
-        response = s.get(url=url, headers=headers,proxies=proxies,verify=False)
-        
-        soup = BeautifulSoup(response.content,'lxml')
+        print('[*] McAfee Web Gateway (Cloud): {}'.format(domain))
 
-        viewstate = soup.select('input[name=__VIEWSTATE]')[0]['value']
-        viewstategenerator = soup.select('input[name=__VIEWSTATEGENERATOR]')[0]['value']
-        eventvalidation = soup.select('input[name=__EVENTVALIDATION]')[0]['value']
+        # HTTP Session container, used to manage cookies, session tokens and other session information
+        s = requests.Session()
 
-        data = {
-        "__EVENTTARGET": "",
-        "__EVENTARGUMENT": "",
-        "__VIEWSTATE": viewstate,
-        "__VIEWSTATEGENERATOR": viewstategenerator,
-        "__EVENTVALIDATION": eventvalidation,
-        "ctl00$ContentPlaceHolder1$brandReputationUrl": domain,
-        "ctl00$ContentPlaceHolder1$brandReputationDoLookup": "Brand Reputation Lookup",
-        "ctl00$ucSignIn$hfRegCode": 'missing',
-        "ctl00$ucSignIn$hfRedirectSignUp": '/Public/Tools/BrandReputation.aspx',
-        "ctl00$ucSignIn$hfRedirectLogin": '',
-        "ctl00$ucSignIn$txtEmailAddress": '',
-        "ctl00$ucSignIn$cbNewAccount": 'cbNewAccount',
-        "ctl00$ucSignIn$txtFullName": '',
-        "ctl00$ucSignIn$txtModalNewPassword": '',
-        "ctl00$ucSignIn$txtPhone": '',
-        "ctl00$ucSignIn$txtCompanyName": '',
-        "ctl00$ucSignIn$drpTitle": '',
-        "ctl00$ucSignIn$txtTitleName": '',
-        "ctl00$ucSignIn$txtModalPassword": ''
+        headers = {
+                'User-Agent':useragent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Accept-Encoding': 'gzip, deflate',
+                'Referer':'https://sitelookup.mcafee.com/'
+                }  
+
+        # Establish our session information
+        response = s.get("https://sitelookup.mcafee.com",headers=headers,verify=False,proxies=proxies)
+
+        # Pull the hidden attributes from the response
+        soup = BeautifulSoup(response.text,"html.parser")
+        hidden_tags = soup.find_all("input",  {"type": "hidden"})
+        for tag in hidden_tags:
+            if tag['name'] == 'sid':
+                sid = tag['value']
+            elif tag['name'] == 'e':
+                e = tag['value']
+            elif tag['name'] == 'c':
+                c = tag['value']
+            elif tag['name'] == 'p':
+                p = tag['value']
+
+        # Retrieve the categorization infos 
+        multipart_form_data = {
+            'sid': (None, sid),
+            'e': (None, e),
+            'c': (None, c),
+            'p': (None, p),
+            'action': (None, 'checksingle'),
+            'product': (None, '14-ts'),
+            'url': (None, domain)
         }
-          
-        response = s.post(url=url, headers=headers, data=data,proxies=proxies,verify=False)
 
-        soup = BeautifulSoup(response.content,'lxml')
-
-        a = ''
-        if soup.select('div[id=ctl00_ContentPlaceHolder1_noIssuesFound]'):
-            a = 'No issues found'
+        response = s.post('https://sitelookup.mcafee.com/en/feedback/url',headers=headers,files=multipart_form_data,verify=False,proxies=proxies)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text,"html.parser")
+            for table in soup.findAll("table", {"class": ["result-table"]}):
+                datas = table.find_all('td')
+                if "not valid" in datas[2].text:
+                    a = 'Uncategorized'
+                else:
+                    status = datas[2].text
+                    category = (datas[3].text[1:]).strip().replace('-',' -')
+                    web_reputation = datas[4].text
+                    a = '{0}, Status: {1}, Web Reputation: {2}'.format(category,status,web_reputation)
             return a
         else:
-            if soup.select('div[id=ctl00_ContentPlaceHolder1_googleSafeBrowsingIssuesFound]'):
-                a = 'Google SafeBrowsing Issues Found. '
-        
-            if soup.select('div[id=ctl00_ContentPlaceHolder1_phishTankIssuesFound]'):
-                a += 'PhishTank Issues Found'
-            return a
+            raise Exception
 
     except Exception as e:
-        print('[-] Error retrieving Google SafeBrowsing and PhishTank reputation!')
+        print('[-] Error retrieving McAfee Web Gateway Domain Reputation!')
         return "error"
 
 def downloadMalwareDomains(malwaredomainsURL):
@@ -315,25 +334,21 @@ def checkDomain(domain):
     ciscotalos = checkTalos(domain)
     print("[+] {}: {}".format(domain, ciscotalos))
 
-    #This service has completely changed, removing for now
-    #mxtoolbox = checkMXToolbox(domain)
-    #print("[+] {}: {}".format(domain, mxtoolbox))
-    mxtoolbox = "-"
-
     umbrella = "not available"
     if len(umbrella_apikey):
         umbrella = checkUmbrella(domain)
         print("[+] {}: {}".format(domain, umbrella))
 
+    mcafeewg = checkMcAfeeWG(domain)
+    print("[+] {}: {}".format(domain, mcafeewg))
+
     print("")
     
-    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mxtoolbox]
+    results = [domain,bluecoat,ibmxforce,ciscotalos,umbrella,mcafeewg]
     return results
 
 def solveCaptcha(url,session):  
-    """Downloads CAPTCHA image and saves to current directory for OCR with tesseract
-    Returns CAPTCHA string or False if error occured
-    """
+    """Downloads CAPTCHA image and saves to current directory for OCR with tesseract"""
     
     jpeg = 'captcha.jpg'
     
@@ -377,6 +392,7 @@ def loginExpiredDomains():
     """Login to the ExpiredDomains site with supplied credentials"""
 
     data = "login=%s&password=%s&redirect_2_url=/begin" % (username, password)
+    
     headers["Content-Type"] = "application/x-www-form-urlencoded"
     r = s.post(expireddomainHost + "/login/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=False)
     cookies = s.cookies.get_dict()
@@ -553,7 +569,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     doSleep(timing)
 
                 # Print results table
-                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'MXToolbox']
+                header = ['Domain', 'BlueCoat', 'IBM X-Force', 'Cisco Talos', 'Umbrella', 'McAfee Web Gateway (Cloud)']
                 print(drawTable(header,data))
 
         except KeyboardInterrupt:
@@ -719,15 +735,23 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
                     if umbrella not in unwantedResults:
                         print("[+] Umbrella {}: {}".format(domain, umbrella))
 
+                mcafeewg = checkMcAfeeWG(domain)
+                if mcafeewg not in unwantedResults:
+                    print("[+] McAfee Web Gateway (Cloud) {}: {}".format(domain, mcafeewg))
+
                 print("")
                 # Sleep to avoid captchas
                 doSleep(timing)
 
             # Append entry to new list with reputation if at least one service reports reputation
-            if not ((bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
-                and (ibmxforce in ('Not found.','error')) and (ciscotalos in ('Uncategorized','error')) and (umbrella in ('Uncategorized','None'))):
+            if not (\
+                (bluecoat in ('Uncategorized','badurl','Suspicious','Malicious Sources/Malnets','captcha','Phishing','Placeholders','Spam','error')) \
+                and (ibmxforce in ('Not found.','error')) \
+                and (ciscotalos in ('Uncategorized','error')) \
+                and (umbrella in ('Uncategorized','None')) \
+                and (mcafeewg in ('Uncategorized','error'))):
                 
-                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella])
+                data.append([domain,birthdate,archiveentries,availabletlds,status,bluecoat,ibmxforce,ciscotalos,umbrella,mcafeewg])
 
     # Sort domain list by column 2 (Birth Year)
     sortedDomains = sorted(data, key=lambda x: x[1], reverse=True) 
@@ -777,6 +801,7 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
         htmlTableBody += '<td><a href="https://exchange.xforce.ibmcloud.com/url/{}" target="_blank">{}</a></td>'.format(i[0],i[6]) # IBM x-Force Categorization
         htmlTableBody += '<td><a href="https://www.talosintelligence.com/reputation_center/lookup?search={}" target="_blank">{}</a></td>'.format(i[0],i[7]) # Cisco Talos
         htmlTableBody += '<td>{}</td>'.format(i[8]) # Cisco Umbrella
+        htmlTableBody += '<td><a href="https://sitelookup.mcafee.com/en/feedback/url?action=checksingle&url=http%3A%2F%2F{}&product=14-ts" target="_blank">{}</a></td>'.format(i[0],i[9]) # McAfee Web Gateway (Cloud)
         htmlTableBody += '<td><a href="http://www.borderware.com/domain_lookup.php?ip={}" target="_blank">WatchGuard</a></td>'.format(i[0]) # Borderware WatchGuard
         htmlTableBody += '<td><a href="https://www.namecheap.com/domains/registration/results.aspx?domain={}" target="_blank">Namecheap</a></td>'.format(i[0]) # Namecheap
         htmlTableBody += '<td><a href="http://web.archive.org/web/*/{}" target="_blank">Archive.org</a></td>'.format(i[0]) # Archive.org

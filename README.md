@@ -6,77 +6,20 @@ Domain name selection is an important aspect of preparation for penetration test
 
 This Python based tool was written to quickly query the Expireddomains.net search engine for expired/available domains with a previous history of use. It then optionally queries for domain reputation against services like Symantec Site Review (BlueCoat), IBM X-Force, and Cisco Talos. The primary tool output is a timestamped HTML table style report.
 
-## Changelog
-
-- 07 January 2021
-   + Fix Symantec Site Review (Bluecoat) reputation checking to bypass XSRF and additional POST parameter checks
-   + Temporary fix for broken malware domains link. This service is no longer offered in the form used by DomainHunter.
-   + Add internal code comments for readability
-   + Add check for ExpiredDomains username before asking for a password
-   + Disable Google Safe Browsing/PhishTank reputation from MxToolbox as this service has changed
-
-- 21 February 2020
-   + updated Pillow version to support Python3.7+
-   + Add instructions to install using pipenv
-
-- 13 August 2019
-   + Added authentication support for ExpiredDomains.net thanks to acole76!
-   
-- 5 October 2018
-   + Fixed logic for filtering domains with desirable categorizations. Previously, some error conditions weren't filtered and would result in domains without a valid categorization making it into the final list.
-
-- 4 October 2018
-   + Tweaked parsing logic
-   + Fixed changes parsed columns indexes
-
-- 17 September 2018
-    + Fixed Symantec WebPulse Site Review parsing errors caused by service updates
-
-- 18 May 2018
-    + Add --alexa switch to control Alexa ranked site filtering
-
-- 16 May 2018
-    + Update queries to increase probability of quickly finding a domain available for instant purchase. Previously, many reported domains had an "In Auction" or "Make an Offer" status. New criteria: .com|.net|.org + Alexa Ranked + Available for Purchase
-    + Improved logic to filter out uncategorized and some potentially undesirable domain categorizations in the final text table and HTML output
-    + Removed unnecessary columns from HTML report
-
-- 6 May 2018
-    + Fixed expired domains parsing when performing a keyword search
-    + Minor HTML and text table output updates
-    + Filtered reputation checks to only execute for .COM, .ORG, and .NET domains and removed check for Archive.org records when performing a default or keyword search. Credit to @christruncer for the original PR and idea.
-
-- 11 April 2018
-    + Added OCR support for CAPTCHA solving with tesseract. Thanks to t94j0 for the idea in [AIRMASTER](https://github.com/t94j0/AIRMASTER)  
-    + Added support for input file list of potential domains (-f/--filename)
-    + Changed -q/--query switch to -k/--keyword to better match its purpose
-    + Added additional error checking for ExpiredDomains.net parsing
-
-- 9 April 2018
-    + Added -t switch for timing control. -t <1-5>
-    + Added Google SafeBrowsing and PhishTank reputation checks
-    + Fixed bug in IBMXForce response parsing
-
-- 7 April 2018
-    + Fixed support for Symantec WebPulse Site Review (formerly Blue Coat WebFilter)
-    + Added Cisco Talos Domain Reputation check
-    + Added feature to perform a reputation check against a single non-expired domain. This is useful when monitoring reputation for domains used in ongoing campaigns and engagements.
-
-- 6 June 2017
-    + Added python 3 support
-    + Code cleanup and bug fixes
-    + Added Status column (Available, Make Offer, Price, Backorder, etc)
+See [CHANGELOG](./CHANGELOG) for history of updates and release notes!
 
 ## Features
 
 - Retrieve specified number of recently expired and deleted domains (.com, .net, .org) from ExpiredDomains.net
+  - Note: You will need credentials from expireddomains.net for full functionality
 - Retrieve available domains based on keyword search from ExpiredDomains.net
-- Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, Cisco Talos, Google SafeBrowsing, and PhishTank services
+- Perform reputation checks against the Symantec WebPulse Site Review (BlueCoat), IBM x-Force, and Cisco Talos
 - Sort results by domain age (if known) and filter for reputation
 - Text-based table and HTML report output with links to reputation sources and Archive.org entry
 
 ## Installation
 
-__Direct Installation__
+### Direct Installation
 
 Install Python requirements
 
@@ -88,7 +31,7 @@ Optional - Install additional OCR support dependencies
 
 - MAC OSX: `brew install tesseract`
 
-__pipenv installation__
+### pipenv installation
 
     pipenv --python 3.7
     pipenv install
@@ -97,9 +40,13 @@ Optional - Install additional OCR support dependencies
 
 - Debian/Ubuntu: `apt-get install tesseract-ocr python3-pil`
 
-## Tip
+### Docker
 
-You will need credentials from expireddomains.net for full functionality
+1. Build the image
+`docker build -t domainhunter .`
+
+2. Run it with your arguments
+`docker run -it domainhunter [args]`
 
 ## Usage
 
@@ -155,8 +102,6 @@ Perform all reputation checks for a single domain
     [*] Downloading malware domain list from http://mirror1.malwaredomains.com/files/justdomains
 
     [*] Fetching domain reputation for: mydomain.com
-    [*] Google SafeBrowsing and PhishTank: mydomain.com
-    [+] mydomain.com: No issues found
     [*] BlueCoat: mydomain.com
     [+] mydomain.com: Technology/Internet
     [*] IBM xForce: mydomain.com

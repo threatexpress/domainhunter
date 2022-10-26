@@ -3,7 +3,7 @@
 #run it:
 #docker run -it domainhunter:1.0 [args]
 
-FROM ubuntu:16.04
+FROM python:3
 
 RUN apt-get update \
 	&& apt-get install python3-pip -y\
