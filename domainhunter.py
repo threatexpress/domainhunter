@@ -391,10 +391,10 @@ def drawTable(header,data):
 def loginExpiredDomains():
     """Login to the ExpiredDomains site with supplied credentials"""
 
-    data = "login=%s&password=%s&redirect_2_url=/begin" % (username, password)
+    data = "login=%s&password=%s&redirect_to_url=/beginpage" % (username, password)
     
     headers["Content-Type"] = "application/x-www-form-urlencoded"
-    r = s.post(expireddomainHost + "/login/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=False)
+    r = s.post(loginExpireddomainHost + "/logincheck/", headers=headers, data=data, proxies=proxies, verify=False, allow_redirects=True)
     cookies = s.cookies.get_dict()
 
     if "location" in r.headers:
@@ -511,6 +511,7 @@ Examples:
     malwaredomainsURL = 'https://gitlab.com/gerowen/old-malware-domains-ad-list/-/raw/master/malwaredomainslist.txt'
     expireddomainsqueryURL = 'https://www.expireddomains.net/domain-name-search'
     expireddomainHost = "https://member.expireddomains.net"
+    loginExpireddomainHost = "https://www.expireddomains.net"
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
 
@@ -697,10 +698,12 @@ If you plan to use this content for illegal purpose, don't.  Have a nice day :)\
     else:
         domain_list_unique = []
         [domain_list_unique.append(item) for item in domain_list if item not in domain_list_unique]
+        # print(domain_list_unique)
 
         # Print number of domains to perform reputation checks against
         if check:
-            print("\n[*] Performing reputation checks for {} domains".format(len(domain_list_unique)))
+            print("\n[*] Performing reputation checks for {} domains".format
+                  (len(domain_list_unique)))
             print("")
 
         for domain_entry in domain_list_unique:
